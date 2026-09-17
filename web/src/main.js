@@ -13,6 +13,7 @@ async function request(action,payload={}){
  const {data:{session},error}=await client.auth.getSession();if(error||!session)throw Error('Entre na sua conta novamente.');
  const response=await fetch(config.url+'/functions/v1/norte',{method:'POST',headers:{'Content-Type':'application/json',apikey:config.key,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action,payload,revision,workspaceId}),signal:AbortSignal.timeout(action==='bank-sync'?170000:40000)});
  let result;try{result=await response.json();}catch{throw Error('O servidor ainda não está disponível. Confira a implantação da função Norte.');}
+ if(response.status===404&&result.code==='NOT_FOUND')throw Error('Seu login foi autenticado, mas o serviço de dados do Norte ainda não foi publicado. O responsável precisa concluir a implantação do Supabase.');
  if(!response.ok||result.error){if(response.status===401||response.status===403){lastState=null;workspaceId='';window.norte.clearPrivateData?.();document.querySelector('#app').innerHTML='<section class="auth-card"><h2>Acesso indisponível</h2><p>Sua autorização terminou ou a sessão expirou. Entre novamente para consultar as contas disponíveis.</p><a href="./">Voltar ao acesso</a></section>';}throw Error(result.error||'Não foi possível concluir.');}
  if(result.revision!==undefined)revision=result.revision;
  return result.value;
@@ -131,7 +132,7 @@ function authScreen(mode='login'){
    if(result.error)throw result.error;
    if(reset||signup&&!result.data?.session){document.querySelector('#auth-error').textContent=reset?'Se o e-mail estiver cadastrado, você receberá um link de recuperação.':'Confira seu e-mail para confirmar o acesso.';return;}
    recovering=false;history.replaceState(null,'',location.pathname);await startApp();
-  }catch(error){document.querySelector('#auth-error').textContent=error.message;}finally{button.disabled=false;}
+  }catch(error){const messages={invalid_credentials:'E-mail ou senha incorretos. Se ainda não tem cadastro, use Criar meu acesso.',email_not_confirmed:'Confirme seu e-mail antes de entrar. Confira também a pasta de spam.',email_address_not_authorized:'O envio de confirmação ainda não está configurado para este endereço. O responsável precisa configurar o serviço de e-mail no Supabase.',over_email_send_rate_limit:'O limite de envio de e-mails foi atingido. Aguarde antes de pedir outro link.'};const text=messages[error.code]||error.message;const target=document.querySelector('#auth-error');if(target)target.textContent=text;else message(text,true);}finally{button.disabled=false;}
  });
 }
 async function startApp(){await chooseWorkspace();}
@@ -145,3 +146,4 @@ async function boot(){
  if(recovering)authScreen('recovery');else if(session)await startApp();else authScreen();
 }
 boot().catch(error=>{document.querySelector('#app').textContent='Não foi possível abrir o Norte: '+error.message;});
+
