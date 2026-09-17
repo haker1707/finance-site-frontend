@@ -23,8 +23,8 @@ jobs:
       - run: npm ci --prefix web
       - run: npm run build --prefix web
         env:
-          NORTE_SUPABASE_URL: ${{ vars.NORTE_SUPABASE_URL }}
-          NORTE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NORTE_SUPABASE_PUBLISHABLE_KEY }}
+          NORTE_SUPABASE_URL: ${{ vars.NORTE_SUPABASE_URL || 'https://msyvyjuezujoxfeswyrx.supabase.co' }}
+          NORTE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NORTE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_F-XCDboQF4_l523YPudKoA_HMBHjmeY' }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
@@ -38,3 +38,4 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/deploy-pages@v4
         id: deployment
+
