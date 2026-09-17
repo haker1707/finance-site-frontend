@@ -1,6 +1,6 @@
 # Importação manual de extratos e faturas
 
-Implementação inicial: CSV Nubank de conta (`Data,Valor,Identificador,Descrição`) e cartão (`date,title,amount`), com separador vírgula ou ponto e vírgula, campos entre aspas e valores com ponto ou vírgula decimal. Outros layouts são recusados com orientação. Limites: 2 MB e 2.000 linhas por arquivo; o documento financeiro mantém seu limite de 30.000 registros e o limite de tamanho já existente.
+Implementação inicial: CSV Nubank de conta (`Data,Valor,Identificador,Descrição`) e cartão (`date,title,amount`), com separador vírgula ou ponto e vírgula, campos entre aspas e valores com ponto ou vírgula decimal. Outros layouts podem ser mapeados explicitamente, com uma coluna de data, descrição, valor e identificador opcional. O cabeçalho deve estar na primeira linha e os valores em uma única coluna. Não há promessa de compatibilidade universal. Limites: 2 MB e 2.000 linhas por arquivo; o documento financeiro mantém seu limite de 30.000 registros e o limite de tamanho já existente.
 
 O navegador lê o arquivo para conferência. O arquivo e as escolhas só são enviados ao servidor quando o titular confirma. Nenhum CSV original fica armazenado como arquivo; os registros preservam a origem da linha, hash e valores originais para rastreabilidade. O histórico de importações registra nome, data e quantidade.
 
@@ -25,3 +25,13 @@ Regras são armazenadas em `data.recurringRules` no documento privado e incluíd
 ## Verificação desta entrega
 
 Revisão de código, compilação e publicação. Não foram executados testes automatizados, testes manuais, importações de exemplos nem importações dos CSVs reais. A validação em uso real permanece pendente por instrução do titular. Conexão bancária continua bloqueada com “Em breve”; e-mail não foi integrado.
+
+## Tolerância a formatos e revisão por linha
+
+Valores aceitam espaços após sinais, sinal menos Unicode, R$, espaços invisíveis, agrupamento de milhares válido e negativos entre parênteses. A conversão usa centavos inteiros. No modo automático, valores ambíguos como um único separador seguido de três dígitos exigem correção; no mapeamento, o usuário pode declarar o separador decimal. Separadores malformados não são removidos indiscriminadamente.
+
+Nubank mantém reconhecimento automático e identidades de duplicidade anteriores para registros válidos. Outros CSVs exigem identificação de colunas, banco, formato de data e separador decimal. A natureza permanece para escolha explícita, evitando presumir a convenção de sinais do banco. Vírgula, ponto e vírgula e tabulação são detectados fora das aspas do cabeçalho.
+
+Erros recuperáveis de data, valor, descrição, identificador ou quantidade de colunas aparecem no registro, com valores originais. O usuário pode corrigir os campos e confirmar a correção, ou deixar o registro desmarcado e autorizar sua exclusão do lote. O servidor repete a interpretação, valida as correções e exige a autorização para pular linhas problemáticas. Linhas excluídas por erro ficam registradas no histórico da importação. Aspas sem fechamento e falhas estruturais que impedem delimitar registros continuam bloqueando o arquivo com mensagem específica.
+
+Nenhuma importação real ou execução de testes foi realizada nesta correção. Compilação e revisão não substituem validação em uso real.

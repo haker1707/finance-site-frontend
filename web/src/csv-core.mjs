@@ -1,42 +1,70 @@
 // Pure rules shared by the browser preview and the authenticated server.
 export const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 export const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&!isNaN(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value&&+value.slice(0,4)>=1900&&+value.slice(0,4)<=2200;
-export function cents(value){let s=String(value).trim();if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');if(!/^-?\d+(?:\.\d{1,2})?$/.test(s))throw Error('Valor inválido no CSV.');const n=Math.round(Number(s)*100);if(!Number.isSafeInteger(n)||Math.abs(n)>900000000000)throw Error('Valor acima do limite.');return n;}
+export function cents(value,decimal='auto'){
+ let s=String(value??'').normalize('NFKC').replace(/[\u200B-\u200D\uFEFF]/g,'').trim().replace(/\u2212/g,'-');
+ s=s.replace(/^([+-]?)\s*R\$\s*/i,'$1').replace(/^([+-])\s+/,'$1');
+ let negative=false;if(/^\(.*\)$/.test(s)){negative=true;s=s.slice(1,-1).trim();}
+ if(s.startsWith('-')){if(negative)throw Error('Sinais negativos repetidos.');negative=true;s=s.slice(1);}else if(s.startsWith('+'))s=s.slice(1);
+ // Spaces are accepted only as valid thousands grouping, never between arbitrary digits.
+ if(/\s/.test(s)){if(!/^\d{1,3}(?:\s\d{3})+(?:[.,]\d{1,2})?$/.test(s))throw Error('Espaços em posição ambígua no valor.');s=s.replace(/\s/g,'');}
+ if(!['auto','comma','dot'].includes(decimal))throw Error('Separador decimal inválido.');
+ if(decimal==='auto'){
+  if(s.includes('.')&&s.includes(','))decimal=s.lastIndexOf(',')>s.lastIndexOf('.')?'comma':'dot';
+  else if(/[.,]/.test(s)){if(!/^\d+[.,]\d{1,2}$/.test(s))throw Error('Valor ambíguo: escolha o separador decimal ou corrija a linha.');decimal=s.includes(',')?'comma':'dot';}
+ }
+ const mark=decimal==='comma'?',':'.',group=mark===','?'.':',';
+ if(s.includes(group)){const pattern=group==='.'?/^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/:/^\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?$/;if(!pattern.test(s))throw Error('Separadores de milhar inválidos.');s=s.split(group).join('');}
+ if(mark===',')s=s.replace(',','.');
+ if(!/^\d+(?:\.\d{1,2})?$/.test(s))throw Error('Valor inválido: informe número com até duas casas decimais.');
+ const [whole,fraction='']=s.split('.'),n=BigInt(whole)*100n+BigInt((fraction+'00').slice(0,2));if(n>900000000000n)throw Error('Valor acima do limite.');return Number(negative?-n:n);
+}
 export async function digest(value){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return Array.from(new Uint8Array(bytes),n=>n.toString(16).padStart(2,'0')).join('');}
 function cells(text){
- const separator=text.slice(0,text.search(/[\r\n]/)<0?text.length:text.search(/[\r\n]/)).includes(';')?';':',';
+ const first=text.split(/\r?\n/)[0];let quotedHeader=false;const counts={',':0,';':0,'\t':0};for(const c of first){if(c==='"')quotedHeader=!quotedHeader;else if(!quotedHeader&&Object.hasOwn(counts,c))counts[c]++;}const separator=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
  const rows=[];let row=[],cell='',quoted=false,closed=false;
  for(let i=0;i<text.length;i++){const c=text[i];if(quoted){if(c==='"'){if(text[i+1]==='"'){cell+='"';i++;}else{quoted=false;closed=true;}}else cell+=c;}
  else if(c===separator){row.push(cell);cell='';closed=false;}
  else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell='';closed=false;}
- else if(c==='"'&&!cell&&!closed)quoted=true;
- else {if(closed||c==='"')throw Error('Aspas inválidas no CSV.');cell+=c;}
- if(rows.length>2001||cell.length>4000)throw Error('Limite de 2.000 movimentações por arquivo.');
+ else if(c==='"'&&!cell.trim()&&!closed){cell='';quoted=true;}
+ else {if((closed&&!/\s/.test(c))||c==='"')throw Error('Aspas inválidas próximas do registro '+(rows.length+1)+'. Corrija o arquivo para manter as colunas alinhadas.');if(!closed)cell+=c;}
+ if(rows.length>2001||cell.length>4000||row.length>100)throw Error('CSV acima do limite de linhas, colunas ou tamanho de campo.');
  }
- if(quoted)throw Error('O CSV termina com aspas abertas.');row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows;
+ if(quoted)throw Error('O CSV termina com aspas abertas. Corrija o arquivo para manter as colunas alinhadas.');row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows;
+}
+export function inspectCSV(text){
+ if(typeof text!=='string'||text.length>2*1024*1024)throw Error('Selecione um CSV de até 2 MB.');
+ const rows=cells(text.replace(/^\uFEFF/,'')),headers=rows.shift()||[],names=headers.map(normalize),signature=names.join('|');
+ if(!rows.length||rows.length>2000)throw Error('O CSV deve conter de 1 a 2.000 movimentações.');
+ return {headers,rows,format:signature==='date|title|amount'?'nubank-credit':signature==='data|valor|identificador|descricao'?'nubank-account':'mapped'};
+}
+function csvDate(value,format){
+ const s=String(value||'').trim();if(validDate(s))return s;if(format==='iso')return '';
+ const m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);if(!m)return '';
+ const d=format==='mdy'?m[2]:m[1],month=format==='mdy'?m[1]:m[2],out=`${m[3]}-${month.padStart(2,'0')}-${d.padStart(2,'0')}`;return validDate(out)?out:'';
 }
 export async function parseCSV(text,context){
- if(typeof text!=='string'||text.length>2*1024*1024)throw Error('Selecione um CSV de até 2 MB.');
- const rows=cells(text.replace(/^\uFEFF/,'')),headers=(rows.shift()||[]).map(normalize);
- const credit=headers.join('|')==='date|title|amount',debit=headers.join('|')==='data|valor|identificador|descricao';
- if(!credit&&!debit)throw Error('Formato não reconhecido. Use o CSV original de extrato ou fatura Nubank.');
- if(credit!==Boolean(context.cardId))throw Error(credit?'Importe a fatura na página do cartão.':'Este arquivo é um extrato de conta. Use a aba Contas e lançamentos.');
+ const {rows,headers,format}=inspectCSV(text),credit=Boolean(context.cardId),known=format!=='mapped';
+ if(known&&(format==='nubank-credit')!==credit)throw Error(credit?'Este arquivo é de conta. Use Contas e lançamentos.':'Este arquivo é uma fatura. Abra a página do cartão.');
  if(credit&&!validDate(context.period+'-01'))throw Error('Escolha o mês da fatura.');
  if(!credit&&(typeof context.account!=='string'||!context.account.trim()||context.account.length>80))throw Error('Informe um nome para a conta (até 80 caracteres).');
- if(!rows.length||rows.length>2000)throw Error('O CSV deve conter de 1 a 2.000 movimentações.');
+ let mapping=known?{date:0,description:credit?1:3,amount:credit?2:1,id:credit?-1:2,dateFormat:credit?'iso':'dmy',decimal:'auto'}:context.mapping;
+ if(!mapping||!['dmy','mdy','iso'].includes(mapping.dateFormat)||!['auto','comma','dot'].includes(mapping.decimal))throw Error('Indique as colunas e os formatos do CSV.');
+ const cols=['date','description','amount'].map(k=>mapping[k]);if(cols.some(i=>!Number.isInteger(i)||i<0||i>=headers.length)||new Set(cols).size!==3)throw Error('Escolha três colunas diferentes para data, descrição e valor.');
+ if(mapping.id!==-1&&(!Number.isInteger(mapping.id)||mapping.id<0||mapping.id>=headers.length||cols.includes(mapping.id)))throw Error('Escolha uma coluna distinta para o identificador, ou nenhuma.');
+ if(!known&&(typeof context.bank!=='string'||!context.bank.trim()||context.bank.length>80))throw Error('Informe o nome do banco (até 80 caracteres).');
  const scope=credit?'card:'+context.cardId:'account:'+normalize(context.account),occurrences=new Map(),seenIds=new Set();
- return Promise.all(rows.map(async(cols,index)=>{
-  if(cols.length!==headers.length)throw Error('Colunas inválidas na linha '+(index+2)+'.');
-  const rawDate=cols[0].trim(),match=rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/),date=credit?rawDate:match?`${match[3]}-${match[2]}-${match[1]}`:'';
-  if(!validDate(date))throw Error('Data inválida na linha '+(index+2)+'.');
-  const description=cols[credit?1:3].trim();if(!description||description.length>2000)throw Error('Descrição inválida na linha '+(index+2)+'.');
-  const signed=cents(cols[credit?2:1]),providerId=credit?'':cols[2].trim();if(!signed)throw Error('Valor zero na linha '+(index+2)+'. Remova esta linha antes de importar.');
-  if(!credit&&(!providerId||providerId.length>200||seenIds.has(providerId)))throw Error('Identificador ausente ou repetido na linha '+(index+2)+'.');seenIds.add(providerId);
-  const identity=JSON.stringify([scope,date,normalize(description),signed]);const occurrence=(occurrences.get(identity)||0)+1;occurrences.set(identity,occurrence);
-  const key=await digest(credit?identity+'|'+occurrence:'nubank-account|'+providerId);
-  const text=normalize(description),payment=/pagamento (?:de )?fatura|pagamento recebido/.test(text),installment=/parcela\s+\d+\s*\/\s*\d+|\b\d+\s*\/\s*\d+\b/i.test(description);
-  let type=payment?'fatura':credit?(signed>0?'despesa':/estorno|reembolso/.test(text)?'estorno':''):signed<0?(/pix|transferencia/.test(text)?'':'despesa'):(/salario/.test(text)?'receita':'');
-  return {index,key,scope,date,description,amount:Math.abs(signed),signed,type,installment,repeated:credit&&occurrence>1,cardId:context.cardId||'',account:credit?'':context.account.trim(),invoicePeriod:credit?context.period:'',providerId};
+ return Promise.all(rows.map(async(raw,index)=>{
+  const rawDate=raw[mapping.date]||'',rawAmount=raw[mapping.amount]||'',description=(raw[mapping.description]||'').trim(),date=csvDate(rawDate,mapping.dateFormat),providerId=mapping.id<0?'':(raw[mapping.id]||'').trim();
+  const issues=[];let signed=null;if(raw.length!==headers.length)issues.push('Quantidade de colunas diferente do cabeçalho.');if(!date)issues.push('Data inválida para o formato escolhido.');if(!description||description.length>2000)issues.push('Descrição ausente ou muito longa.');try{signed=cents(rawAmount,mapping.decimal);if(!signed)issues.push('Valor zero: confirme o valor ou exclua a linha da seleção.');}catch(e){issues.push(e.message);}
+  const repeatedId=providerId&&seenIds.has(providerId);if(providerId)seenIds.add(providerId);if(mapping.id>=0&&(!providerId||providerId.length>200||repeatedId))issues.push('Identificador ausente, longo ou repetido.');
+  const identity=JSON.stringify([scope,date,normalize(description),signed]),occurrence=(occurrences.get(identity)||0)+1;occurrences.set(identity,occurrence);
+  // Keep the original Nubank identities compatible with previously imported records.
+  const identityText=known&&!issues.length?(credit?identity+'|'+occurrence:'nubank-account|'+providerId):'csv-v2|'+format+'|'+normalize(context.bank||'Nubank')+'|'+scope+'|'+(providerId&&!repeatedId?'id|'+providerId:JSON.stringify(raw)+'|'+occurrence);
+  const key=await digest(identityText),label=normalize(description),installment=/parcela\s+\d+\s*\/\s*\d+|\b\d+\s*\/\s*\d+\b/i.test(description);
+  const payment=/pagamento (?:de )?fatura/.test(label)||(credit&&/pagamento recebido/.test(label));
+  const type=!known||issues.length?'':payment?'fatura':credit?(signed>0?'despesa':/estorno|reembolso/.test(label)?'estorno':''):signed<0?(/pix|transferencia/.test(label)?'':'despesa'):(/salario/.test(label)?'receita':'');
+  return {index,key,scope,date,description,amount:signed===null?0:Math.abs(signed),signed,type,installment,repeated:Boolean(repeatedId||occurrence>1),cardId:context.cardId||'',account:credit?'':context.account.trim(),invoicePeriod:credit?context.period:'',providerId,issues,raw,rawDate,rawAmount,format};
  }));
 }
 const categoryRules=[[/netflix|spotify|amazon prime|disney|youtube|icloud|google one|assinatura|openai|chatgpt/,'Assinaturas'],[/mercado|supermercado|atacadao|assai|carrefour/,'Supermercado'],[/ifood|restaurante|lanchonete|padaria|pizzaria/,'Alimentação'],[/uber|99app|posto|combustivel|estacionamento/,'Transporte'],[/farmacia|drogaria|hospital|clinica/,'Saúde'],[/escola|curso|faculdade|livraria/,'Educação'],[/energia|eletric|agua|internet|aluguel/,'Moradia']];
