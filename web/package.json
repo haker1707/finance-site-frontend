@@ -1,0 +1,9 @@
+{
+  "name": "norte-web",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {"build": "node build.mjs"},
+  "dependencies": {"@supabase/supabase-js": "^2.57.0", "pluggy-connect-sdk": "^2.0.0", "fflate": "^0.8.2", "fast-xml-parser": "^5.3.0"},
+  "devDependencies": {"esbuild": "^0.25.0"}
+}

@@ -1,0 +1,7 @@
+node_modules/
+web/dist/
+web/generated/
+.env
+.env.*
+*.log
+supabase/.temp/
