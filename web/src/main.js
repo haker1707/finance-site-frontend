@@ -47,7 +47,12 @@ async function call(action,p={}){
 function settingsView(state){return `<div class="heading"><div><div class="eyebrow">SUA CONTA</div><h1>Dados e preferências</h1><p>Seu histórico privado, disponível nos seus dispositivos.</p></div></div><div class="equal-col"><section class="panel"><h2>Backup dos registros</h2><p>Baixe uma cópia em JSON. Ao restaurar, o Norte baixa primeiro uma cópia dos registros atuais. Guarde esse arquivo em um local privado.</p><div class="row"><button class="primary" data-action="backup">Exportar backup</button><button data-action="restore">Restaurar backup</button></div><div class="notice">O backup do site inclui registros, categorias e preferências. Autorizações bancárias ficam fora do arquivo. O backup SQLite do aplicativo portátil não é compatível com esta restauração.</div></section><section class="panel"><h2>Sua conta Norte</h2><p>${escape(state.email)}${state.platformAdmin?' · Administrador do Norte':''}</p><p>Os registros são salvos no servidor. É preciso estar conectado à internet para consultar e salvar alterações.</p><button data-action="web-reload">Atualizar dados</button><div class="balance-block"><h3>Aparência</h3><p>Tema ${state.settings.theme==='light'?'claro':'escuro'}</p><button data-action="theme">Alternar tema</button></div><p class="export-note">O site não cria backups automáticos locais. A retenção de backups do banco depende do plano contratado no Supabase.</p></section></div><section class="panel"><h2>Importações</h2>${state.imports.length?state.imports.map(i=>`<p>${escape(i.name)} · ${escape(i.year)} · ${escape(i.date)}</p>`).join(''):'<p>Nenhuma importação realizada.</p>'}</section>`;}
 let bankPage=0,bankFilter='review',bankAccountFilter='';
 const bankConnections=state=>state.connections||(state.connection?[state.connection]:[]);
+const bankComingSoon=true;
 function bankView(state){
+ if(!bankComingSoon)return bankContent(state);
+ return `<section style="position:relative;min-height:65vh;overflow:hidden;border-radius:20px" aria-label="Conexão bancária — Em breve"><div inert aria-hidden="true" style="filter:blur(5px);opacity:.3;pointer-events:none;user-select:none;max-height:75vh;overflow:hidden">${bankContent(state)}</div><div role="status" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(12,18,28,.55);z-index:2"><h1 style="font-size:clamp(48px,10vw,100px);font-weight:800;line-height:1.1;text-align:center;color:#fff;margin:24px;text-shadow:0 4px 24px rgba(0,0,0,.35)">Em breve</h1></div></section>`;
+}
+function bankContent(state){
  const inbox=state.bankInbox||[],linked=bankConnections(state);
  const accountNames=new Map();
  for(const conn of linked)for(const account of conn.accounts||[])accountNames.set(account.id,(conn.label?conn.label+' · ':'')+account.name+(account.last4?' · final '+account.last4:''));
@@ -75,6 +80,7 @@ function bankRow(tx,state){
  return `<article class="bank-item" data-bank-key="${escape(tx.key)}"><div class="bank-meta"><div class="bank-description"><strong>${escape(tx.description)}</strong><p class="tiny">${escape(tx.date)} · ${institution?escape(institution)+' · ':''}${escape(tx.accountName)}${tx.cardLast4?' · final '+escape(tx.cardLast4):''} · ${tx.type==='CREDIT'?'Entrada/crédito':'Saída/débito'}${tx.installment?' · parcela '+escape(tx.installment)+'/'+escape(tx.totalInstallments):''}</p></div><div><strong>${tx.currency==='BRL'?money(tx.amount):escape(tx.currency)+' '+escape(tx.amount/100)}</strong><p><span class="tag">${status}</span></p></div></div>${ready?`<form class="bank-controls"><select name="type" data-bank-type aria-label="Natureza da movimentação"><option value="">Escolha a natureza…</option><option value="despesa">Despesa</option><option value="receita">Receita</option><option value="transferencia">Transferência entre contas</option><option value="fatura">Pagamento de fatura</option><option value="estorno">Estorno de despesa</option><option value="investimento">Investimento</option><option value="divida">Pagamento de dívida</option></select><select name="categoryId" data-bank-category aria-label="Categoria"><option value="">Selecione a categoria…</option>${state.records.filter(c=>c.kind==='category'&&!c.archived).map(c=>`<option value="${escape(c.id)}" data-type="${c.type}">${escape(c.name)} · ${escape(window.F.TYPES[c.type])}</option>`).join('')}<option value="__new_category__">+ Adicionar nova categoria</option></select><button data-action="web-classify">Confirmar</button><button data-action="web-ignore">Ignorar</button></form>`:''}</article>`;
 }
 async function sync(itemId='',onlyStale=false){
+ if(bankComingSoon)return;
  if(syncing){message('Já há uma sincronização em andamento.');return;}
  const linked=bankConnections(lastState).filter(conn=>(!itemId||conn.itemId===itemId)&&(!onlyStale||!conn.lastSync||Date.now()-Date.parse(conn.lastSync)>3600000));
  if(!linked.length){if(!onlyStale)message('Adicione um banco antes de sincronizar.',true);return;}
@@ -89,6 +95,7 @@ async function sync(itemId='',onlyStale=false){
  message(errors.length?`${completed}/${linked.length} bancos sincronizados. ${errors.join(' · ')}`:`${count} movimentações consultadas em ${completed} banco(s).`,Boolean(errors.length));
 }
 async function connect(itemId=''){
+ if(bankComingSoon){message('Em breve');return;}
  const label=itemId?'':document.querySelector('#bank-label')?.value.trim()||'';
  const result=await request('bank-token',{...(itemId?{itemId}:{}),label});if(lastState)lastState.pendingConnections=(lastState.pendingConnections||0)+1;if(widget)await widget.destroy();
  widget=new PluggyConnect({connectToken:result.connectToken,connectorIds:result.connectorIds,includeSandbox:false,updateItem:result.itemId,language:'pt',theme:lastState.settings.theme,
@@ -146,7 +153,7 @@ setInterval(()=>{if(loaded&&workspaceId&&document.visibilityState==='visible')re
 
 let checkingBank=false;
 setInterval(async()=>{
- if(checkingBank||syncing||!loaded||!workspaceId||lastState?.role!=='owner'||!lastState.pendingConnections||document.visibilityState!=='visible'||document.querySelector('#modal')?.open||document.activeElement?.matches('input,select,textarea'))return;
+ if(bankComingSoon||checkingBank||syncing||!loaded||!workspaceId||lastState?.role!=='owner'||!lastState.pendingConnections||document.visibilityState!=='visible'||document.querySelector('#modal')?.open||document.activeElement?.matches('input,select,textarea'))return;
  checkingBank=true;
  try{await window.norte.refresh();await sync('',true);}catch(error){message(error.message,true);}finally{checkingBank=false;}
 },60000);
