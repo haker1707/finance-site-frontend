@@ -1,0 +1,61 @@
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const validPhoto=value=>typeof value==='string'&&value.length<=180000&&/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
+const initials=account=>(account.displayName||account.email||'EU').trim().split(/\s+/).slice(0,2).map(s=>Array.from(s)[0]).join('').toUpperCase();
+const date=value=>value?new Date(value).toLocaleString('pt-BR'):'Não disponível';
+function avatar(account,large=false){return `<span class="profile-avatar ${large?'profile-avatar-large':''}" aria-hidden="true">${validPhoto(account.avatar)?`<img src="${esc(account.avatar)}" alt="">`:esc(initials(account))}</span>`;}
+export function accountButton(state){const account=state.account||{};return `<button type="button" class="account-menu-button flat" data-action="web-profile" aria-label="Abrir configurações da minha conta" title="Minha conta">${avatar(account)}<span>Minha conta</span></button>`;}
+function accessLabel(account){
+ if(!account.expiresAt)return 'Prazo não definido';
+ const delta=Date.parse(account.expiresAt)-Date.parse(account.serverTime);
+ if(!Number.isFinite(delta))return 'Prazo não definido';
+ if(delta<=0)return 'Prazo encerrado';
+ const days=Math.floor(delta/86400000),hours=Math.floor(delta%86400000/3600000);
+ return days?`${days} dia(s) e ${hours} hora(s) restantes`:hours?`${hours} hora(s) restantes`:'Menos de 1 hora restante';
+}
+async function photoData(file){
+ if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024)throw Error('Selecione uma foto JPG, PNG ou WebP de até 5 MB.');
+ const bitmap=await createImageBitmap(file);
+ try{
+  if(!bitmap.width||!bitmap.height||bitmap.width*bitmap.height>40000000)throw Error('Escolha uma foto menor, com até 40 megapixels.');
+  const canvas=document.createElement('canvas');canvas.width=192;canvas.height=192;
+  const context=canvas.getContext('2d');context.fillStyle='#f6f4ef';context.fillRect(0,0,192,192);
+  const side=Math.min(bitmap.width,bitmap.height);context.drawImage(bitmap,(bitmap.width-side)/2,(bitmap.height-side)/2,side,side,0,0,192,192);
+  const result=canvas.toDataURL('image/jpeg',.85);if(result.length>180000)throw Error('Não foi possível reduzir essa foto. Escolha outra.');return result;
+ }finally{bitmap.close();}
+}
+export async function openAccount({request,refresh,chooseWorkspace,logout,getTheme}){
+ const account=await request('account-get');
+ const dialog=document.querySelector('#modal');let photo=account.avatar,photoBusy=false;
+ dialog.classList.add('account-dialog');
+ dialog.innerHTML=`<div class="dialog-heading"><div><div class="eyebrow">SEU PERFIL</div><h2>Minha conta</h2></div><button type="button" id="account-close">Fechar</button></div>
+ <div class="account-summary"><div id="account-photo-preview">${avatar(account,true)}</div><div><h3>${esc(account.displayName||'Sua conta Norte')}</h3><p>${esc(account.email)}</p><span class="tag">${account.platformAdmin?'Administrador':account.isConsultant?'Consultor':'Conta pessoal'}</span></div></div>
+ <div id="account-feedback" role="status" aria-live="polite"></div>
+ <section class="account-section"><h3>Nome e foto</h3><form id="account-profile-form"><div class="field"><label for="profile-name">Como quer ser chamado?</label><input id="profile-name" name="displayName" maxlength="80" autocomplete="name" value="${esc(account.displayName)}" placeholder="Seu nome"></div><div class="field"><label for="profile-photo">Foto do perfil</label><input id="profile-photo" type="file" accept="image/jpeg,image/png,image/webp"><p class="tiny">JPG, PNG ou WebP, até 5 MB. A foto será recortada no centro e ficará privada na sua conta.</p></div><div class="row"><button type="button" id="account-remove-photo">Remover foto</button><button type="submit" class="primary">Salvar perfil</button></div></form></section>
+ <section class="account-section"><h3>Acesso e cadastro</h3><dl class="account-facts"><div><dt>Último login</dt><dd>${esc(date(account.lastSignInAt))}</dd></div><div><dt>Conta criada em</dt><dd>${esc(date(account.createdAt))}</dd></div><div><dt>Tempo restante de acesso</dt><dd>${esc(accessLabel(account))}</dd></div>${account.expiresAt?`<div><dt>Validade cadastrada</dt><dd>${esc(date(account.expiresAt))}</dd></div>`:''}</dl><p class="tiny">${account.expiresAt?'Prazo informado pela administração.':'Nenhum prazo de acesso foi cadastrado para sua conta.'}</p></section>
+ <section class="account-section"><h3>Aparência</h3><div class="account-theme-options"><button type="button" data-account-theme="dark" aria-pressed="${getTheme()==='dark'}">Mármore preto e ouro</button><button type="button" data-account-theme="light" aria-pressed="${getTheme()==='light'}">Mármore branco e ouro</button></div></section>
+ <details class="account-section"><summary>Alterar senha</summary><form id="account-password-form"><p>Confirme sua senha atual. Depois da alteração, você entrará novamente.</p><div class="field"><label for="profile-current-password">Senha atual</label><input id="profile-current-password" name="password" type="password" autocomplete="current-password" required maxlength="1024"></div><div class="field"><label for="profile-new-password">Nova senha</label><input id="profile-new-password" name="newPassword" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></div><div class="field"><label for="profile-repeat-password">Repita a nova senha</label><input id="profile-repeat-password" name="repeatPassword" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></div><button class="primary" type="submit">Alterar senha</button></form></details>
+ <section class="account-section"><div class="panel-head"><h3>Conta de consultor</h3><span class="tag">Em breve</span></div><p>As ferramentas de consultoria estão em desenvolvimento. Você já pode ativar seu perfil com um código de liberação.</p>${account.isConsultant?'<div class="notice">Você é um consultor</div>':'<form id="account-consultant-form"><div class="field"><label for="profile-code">Código de liberação</label><input id="profile-code" name="code" type="password" autocomplete="off" spellcheck="false" maxlength="128" required></div><button type="submit" class="primary">Ativar conta de consultor</button></form>'}<p class="tiny">A ativação não dá acesso às finanças de outras pessoas. Cada titular precisa autorizar o compartilhamento.</p></section>
+ <section class="account-section"><h3>Contas e privacidade</h3><p>Consulte suas finanças ou as contas compartilhadas com você. Backups e autorizações ficam em Dados e preferências da conta selecionada.</p><button type="button" id="account-workspaces">Trocar conta financeira</button></section>
+ <details class="account-section account-danger"><summary>Excluir minha conta</summary><p>A exclusão remove seu acesso, perfil, registros financeiros e autorizações no Norte. É permanente e não apaga cópias já exportadas ou backups do provedor dentro do período de retenção. As contas de outras pessoas não serão excluídas.</p><p class="tiny">Se houver conexão bancária ou autorização pendente, a exclusão será bloqueada até a desvinculação com suporte. Revogue o consentimento no aplicativo do banco.</p><form id="account-delete-form"><div class="field"><label for="delete-password">Confirme sua senha atual</label><input id="delete-password" name="password" type="password" autocomplete="current-password" maxlength="1024" required></div><div class="field"><label for="delete-confirmation">Digite EXCLUIR MINHA CONTA</label><input id="delete-confirmation" name="confirmation" autocomplete="off" spellcheck="false" required></div><label class="check"><input type="checkbox" name="acknowledged" required><span>Entendo que a exclusão é permanente.</span></label><button type="submit" class="danger">Excluir permanentemente minha conta</button></form></details>`;
+ const feedback=(text,error=false)=>{const node=dialog.querySelector('#account-feedback');if(!node)return;node.textContent=text;node.className=error?'notice account-error':'notice';node.scrollIntoView({block:'nearest',behavior:'auto'});};
+ dialog.onclose=()=>{dialog.classList.remove('account-dialog');dialog.innerHTML='';};
+ if(!dialog.open)dialog.showModal();
+ dialog.querySelector('#account-close').onclick=()=>dialog.close();
+ dialog.querySelector('#profile-photo').onchange=async event=>{
+  const input=event.currentTarget,file=input.files?.[0];if(!file)return;photoBusy=true;
+  try{const data=await photoData(file);if(!input.isConnected)return;photo=data;dialog.querySelector('#account-photo-preview').innerHTML=avatar({...account,avatar:photo},true);feedback('Foto preparada. Clique em Salvar perfil para confirmar.');}
+  catch(error){feedback(error.message,true);input.value='';}finally{photoBusy=false;}
+ };
+ dialog.querySelector('#account-remove-photo').onclick=()=>{if(photoBusy)return;photo='';dialog.querySelector('#profile-photo').value='';dialog.querySelector('#account-photo-preview').innerHTML=avatar({...account,avatar:''},true);feedback('Clique em Salvar perfil para confirmar a remoção.');};
+ const reopen=async text=>{await refresh();if(!dialog.open)return;await openAccount({request,refresh,chooseWorkspace,logout,getTheme});const node=dialog.querySelector('#account-feedback');if(node){node.textContent=text;node.className='notice';}};
+ const bind=(selector,handler)=>dialog.querySelector(selector)?.addEventListener('submit',async event=>{
+  event.preventDefault();event.stopPropagation();const form=event.currentTarget,button=form.querySelector('[type=submit]');button.disabled=true;
+  try{await handler(form);}catch(error){feedback(error.message,true);}finally{if(button.isConnected)button.disabled=false;}
+ });
+ bind('#account-profile-form',async form=>{if(photoBusy)throw Error('Aguarde a preparação da foto.');await request('account-profile',{displayName:form.elements.displayName.value,avatar:photo});await reopen('Perfil atualizado.');});
+ bind('#account-password-form',async form=>{if(form.elements.newPassword.value!==form.elements.repeatPassword.value)throw Error('As novas senhas não coincidem.');await request('account-password',{password:form.elements.password.value,newPassword:form.elements.newPassword.value});form.reset();await logout('Senha alterada. Entre com sua nova senha.');});
+ bind('#account-consultant-form',async form=>{const result=await request('account-consultant',{code:form.elements.code.value});form.reset();await reopen(result.message);});
+ bind('#account-delete-form',async form=>{if(form.elements.confirmation.value!=='EXCLUIR MINHA CONTA')throw Error('Digite EXCLUIR MINHA CONTA exatamente como indicado.');if(!form.elements.acknowledged.checked)throw Error('Confirme que compreendeu a exclusão.');await request('account-delete',{password:form.elements.password.value,confirmation:form.elements.confirmation.value});await logout('Sua conta foi excluída.');});
+ dialog.querySelectorAll('[data-account-theme]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{await request('account-theme',{theme:button.dataset.accountTheme});await reopen('Aparência salva na sua conta.');}catch(error){feedback(error.message,true);button.disabled=false;}});
+ dialog.querySelector('#account-workspaces').onclick=async()=>{dialog.close();try{await chooseWorkspace();}catch(error){await openAccount({request,refresh,chooseWorkspace,logout,getTheme});feedback(error.message,true);}};
+}

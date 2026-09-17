@@ -1,11 +1,12 @@
 import {createClient} from '@supabase/supabase-js';
+import {accountButton,openAccount} from './account.js';
 import {PluggyConnect} from 'pluggy-connect-sdk';
 import {readXlsx,fromSnapshot,planImport} from '../generated/importer.js';
 
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((n||0)/100);
 const config=window.NORTE_CONFIG||{};
-let client,revision=0,lastState=null,selectedFile=null,preview=null,loaded=false,recovering=location.hash.includes('type=recovery'),syncing=false,widget=null,workspaceId='',accessEpoch=0;
+let client,revision=0,lastState=null,selectedFile=null,preview=null,loaded=false,recovering=location.hash.includes('type=recovery'),syncing=false,widget=null,workspaceId='',accessEpoch=0,endingAccount=false;
 const message=(text,error=false)=>{const node=document.querySelector('#toast');node.textContent=text;node.style.display='block';node.style.background=error?'var(--red)':'var(--accent)';clearTimeout(message.timer);message.timer=setTimeout(()=>node.style.display='none',8000);};
 function download(name,content,type='application/json'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);return name;}
 function filePicker(accept){return new Promise(resolve=>{const input=document.createElement('input');input.type='file';input.accept=accept;input.hidden=true;document.body.append(input);input.addEventListener('change',()=>{const file=input.files[0]||null;input.remove();resolve(file);},{once:true});input.addEventListener('cancel',()=>{input.remove();resolve(null);},{once:true});input.click();});}
@@ -23,6 +24,7 @@ async function request(action,payload={}){
  return result.value;
 }
 async function call(action,p={}){
+ if(action==='setting'&&p.key==='theme')return request('account-theme',{theme:p.value});
  if(lastState?.role==='consultant'&&!['state','csv'].includes(action))throw Error('O acesso do consultor permite somente leitura.');
  if(action==='state'){lastState=await request('state');revision=lastState.revision;return lastState;}
  if(action==='chooseImport'){selectedFile=await filePicker('.xlsx,.json');preview=null;return selectedFile?.name||null;}
@@ -109,6 +111,7 @@ async function connect(itemId=''){
  });await widget.init();
 }
 async function action(action,el){
+ if(action==='web-profile')return openAccount({request,refresh:()=>window.norte.refresh(),chooseWorkspace,logout:accountLogout,getTheme:()=>document.body.classList.contains('light')?'light':'dark'});
  if(action==='web-accounts')return chooseWorkspace();
  if(action==='web-access')return accessDialog();
  if(action==='web-logout'){clearAccount();document.querySelector('#app').innerHTML='<p class="loading">Saindo…</p>';await client.auth.signOut();location.reload();return;}
@@ -127,10 +130,10 @@ async function action(action,el){
  }
  throw Error('Ação indisponível.');
 }
-window.norte={web:true,call,action,bankView,settingsView:state=>state.role==='consultant'?'<section class="panel"><h1>Acesso do consultor</h1><p>Você pode consultar esta conta. Somente o responsável pode alterar registros, gerenciar acessos e conectar bancos.</p><button data-action="web-accounts">Selecionar conta</button></section>':settingsView(state)+'<section class="panel"><h2>Quem pode acessar</h2><p>Somente você e os consultores que autorizar. Os consultores têm acesso de leitura e não podem convidar outras pessoas.</p><button data-action="web-access">Gerenciar consultores</button></section>',onRender:()=>{
+window.norte={web:true,call,action,bankView,accountButton,settingsView:state=>state.role==='consultant'?'<section class="panel"><h1>Acesso do consultor</h1><p>Você pode consultar esta conta. Somente o responsável pode alterar registros, gerenciar acessos e conectar bancos.</p><button data-action="web-accounts">Selecionar conta</button></section>':settingsView(state)+'<section class="panel"><h2>Quem pode acessar</h2><p>Somente você e os consultores que autorizar. Os consultores têm acesso de leitura e não podem convidar outras pessoas.</p><button data-action="web-access">Gerenciar consultores</button></section>',onRender:()=>{
   const readonly=lastState?.role==='consultant';document.body.classList.toggle('consultant',readonly);
   if(!readonly)return;
-  const allowed=new Set(['navigate','collapse','csv','prev-page','next-page','schedule','web-logout','web-accounts','web-reload','web-bank-filter','web-bank-prev','web-bank-next']);
+  const allowed=new Set(['navigate','collapse','csv','prev-page','next-page','schedule','web-logout','web-accounts','web-profile','theme','web-reload','web-bank-filter','web-bank-prev','web-bank-next']);
   document.querySelectorAll('[data-action]').forEach(button=>{if(!allowed.has(button.dataset.action)||button.dataset.route==='import')button.hidden=true;});
   document.querySelectorAll('#app form input,#app form select,#app form button').forEach(input=>input.disabled=true);
  },afterLoad:async()=>{if(lastState?.role==='owner'&&lastState.bankEnabled&&bankConnections(lastState).length){try{await sync('',true);}catch(error){message(error.message,true);}}}};
@@ -188,13 +191,18 @@ function authScreen(mode='login'){
   }catch(error){const messages={invalid_credentials:'E-mail ou senha incorretos. Se ainda não tem cadastro, use Criar minha conta.',email_not_confirmed:'Confirme seu e-mail antes de entrar. Confira também a pasta de spam.',email_address_not_authorized:'O envio de confirmação ainda não está configurado para este endereço. O responsável precisa configurar o serviço de e-mail no Supabase.',over_email_send_rate_limit:'O limite de envio de e-mails foi atingido. Aguarde antes de pedir outro link.'};const text=messages[error.code]||error.message;const target=document.querySelector('#auth-error');if(target)target.textContent=text;else message(text,true);}finally{button.disabled=false;}
  });
 }
+async function accountLogout(text){
+ endingAccount=true;clearAccount();document.querySelector('#app').innerHTML='<p class="loading">'+escape(text)+'</p><p class="loading"><a href="./">Voltar ao acesso</a></p>';
+ try{await client.auth.signOut({scope:'local'});}catch{}
+ authScreen();document.querySelector('#auth-error').textContent=text;endingAccount=false;
+}
 async function startApp(){await chooseWorkspace();}
 async function boot(){
  if(!config.url||!config.key){document.querySelector('#app').innerHTML='<div class="auth-shell"><div class="auth-intro"><div class="eyebrow">NORTE</div><h1>Quase pronto.</h1><p>O site foi publicado. Falta conectar o projeto Supabase para ativar seu acesso e armazenamento.</p></div><section class="auth-card"><h2>Configuração pendente</h2><p>Configure as variáveis públicas do projeto no GitHub e publique novamente, seguindo o guia de implantação do repositório.</p><p>Nenhum dado financeiro foi carregado.</p></section></div>';return;}
  // Authentication and financial data stay in memory, not persistent browser storage.
  try{localStorage.removeItem('sb-'+new URL(config.url).hostname.split('.')[0]+'-auth-token');}catch{}
  client=createClient(config.url,config.key,{auth:{persistSession:false,autoRefreshToken:true,detectSessionInUrl:true}});
- client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;authScreen('recovery');}if(event==='SIGNED_OUT'){clearAccount();if(loaded)location.reload();}});
+ client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;authScreen('recovery');}if(event==='SIGNED_OUT'){clearAccount();if(loaded&&!endingAccount)location.reload();}});
  const {data:{session}}=await client.auth.getSession();
  if(recovering)authScreen('recovery');else if(session)await startApp();else authScreen();
 }
