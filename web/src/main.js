@@ -5,16 +5,20 @@ import {readXlsx,fromSnapshot,planImport} from '../generated/importer.js';
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((n||0)/100);
 const config=window.NORTE_CONFIG||{};
-let client,revision=0,lastState=null,selectedFile=null,preview=null,loaded=false,recovering=location.hash.includes('type=recovery'),syncing=false,widget=null,workspaceId='';
+let client,revision=0,lastState=null,selectedFile=null,preview=null,loaded=false,recovering=location.hash.includes('type=recovery'),syncing=false,widget=null,workspaceId='',accessEpoch=0;
 const message=(text,error=false)=>{const node=document.querySelector('#toast');node.textContent=text;node.style.display='block';node.style.background=error?'var(--red)':'var(--accent)';clearTimeout(message.timer);message.timer=setTimeout(()=>node.style.display='none',8000);};
 function download(name,content,type='application/json'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);return name;}
 function filePicker(accept){return new Promise(resolve=>{const input=document.createElement('input');input.type='file';input.accept=accept;input.hidden=true;document.body.append(input);input.addEventListener('change',()=>{const file=input.files[0]||null;input.remove();resolve(file);},{once:true});input.addEventListener('cancel',()=>{input.remove();resolve(null);},{once:true});input.click();});}
+function clearAccount(){accessEpoch++;lastState=null;workspaceId='';revision=0;selectedFile=null;preview=null;window.norte.clearPrivateData?.();const toast=document.querySelector('#toast');if(toast){toast.textContent='';toast.style.display='none';}}
 async function request(action,payload={}){
- const {data:{session},error}=await client.auth.getSession();if(error||!session)throw Error('Entre na sua conta novamente.');
- const response=await fetch(config.url+'/functions/v1/norte',{method:'POST',headers:{'Content-Type':'application/json',apikey:config.key,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action,payload,revision,workspaceId}),signal:AbortSignal.timeout(action==='bank-sync'?170000:action==='state'?90000:60000)});
+ const epoch=accessEpoch,targetWorkspace=workspaceId;
+ const {data:{session},error}=await client.auth.getSession();if(error||!session){clearAccount();authScreen();throw Error('Entre na sua conta novamente.');}
+ if(epoch!==accessEpoch)throw Error('A conta selecionada mudou.');
+ const response=await fetch(config.url+'/functions/v1/norte',{method:'POST',headers:{'Content-Type':'application/json',apikey:config.key,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action,payload,revision,workspaceId:targetWorkspace}),signal:AbortSignal.timeout(action==='bank-sync'?170000:action==='state'?90000:60000)});
  let result;try{result=await response.json();}catch{throw Error('O servidor ainda não está disponível. Confira a implantação da função Norte.');}
+ if(epoch!==accessEpoch||targetWorkspace!==workspaceId)throw Error('A conta selecionada mudou.');
  if(response.status===404&&result.code==='NOT_FOUND')throw Error('Seu login foi autenticado, mas o serviço de dados do Norte ainda não foi publicado. O responsável precisa concluir a implantação do Supabase.');
- if(!response.ok||result.error){if(response.status===401||response.status===403){lastState=null;workspaceId='';window.norte.clearPrivateData?.();document.querySelector('#app').innerHTML='<section class="auth-card"><h2>Acesso indisponível</h2><p>Sua autorização terminou ou a sessão expirou. Entre novamente para consultar as contas disponíveis.</p><a href="./">Voltar ao acesso</a></section>';}throw Error(result.error||'Não foi possível concluir.');}
+ if(!response.ok||result.error){if(response.status===401||response.status===403){clearAccount();document.querySelector('#app').innerHTML='<section class="auth-card"><h2>Acesso indisponível</h2><p>Sua autorização terminou ou a sessão expirou. Entre novamente para consultar as contas disponíveis.</p><a href="./">Voltar ao acesso</a></section>';}throw Error(result.error||'Não foi possível concluir.');}
  if(result.revision!==undefined)revision=result.revision;
  return result.value;
 }
@@ -50,7 +54,7 @@ const bankConnections=state=>state.connections||(state.connection?[state.connect
 const bankComingSoon=true;
 function bankView(state){
  if(!bankComingSoon)return bankContent(state);
- return `<section style="position:relative;min-height:65vh;overflow:hidden;border-radius:20px" aria-label="Conexão bancária — Em breve"><div inert aria-hidden="true" style="filter:blur(5px);opacity:.3;pointer-events:none;user-select:none;max-height:75vh;overflow:hidden">${bankContent(state)}</div><div role="status" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(12,18,28,.55);z-index:2"><h1 style="font-size:clamp(48px,10vw,100px);font-weight:800;line-height:1.1;text-align:center;color:#fff;margin:24px;text-shadow:0 4px 24px rgba(0,0,0,.35)">Em breve</h1></div></section>`;
+ return `<section class="bank-locked" aria-label="Conexão bancária — Em breve"><div inert aria-hidden="true" class="bank-preview">${bankContent(state)}</div><div role="status" class="coming-soon"><p>Conexão bancária</p><h1>Em breve</h1></div></section>`;
 }
 function bankContent(state){
  const inbox=state.bankInbox||[],linked=bankConnections(state);
@@ -107,7 +111,7 @@ async function connect(itemId=''){
 async function action(action,el){
  if(action==='web-accounts')return chooseWorkspace();
  if(action==='web-access')return accessDialog();
- if(action==='web-logout'){await client.auth.signOut();location.reload();return;}
+ if(action==='web-logout'){clearAccount();document.querySelector('#app').innerHTML='<p class="loading">Saindo…</p>';await client.auth.signOut();location.reload();return;}
  if(action==='web-reload')return;
  if(action==='web-connect')return connect(el.dataset.item||'');
  if(action==='web-bank-cancel')return request('bank-cancel');
@@ -143,9 +147,9 @@ async function accessDialog(){
 async function chooseWorkspace(){
  const available=await request('workspaces');
  if(!loaded&&available.own&&!available.shared.length){workspaceId=available.own.id;return loadApp();}
- lastState=null;workspaceId='';window.norte.clearPrivateData?.();
+ clearAccount();
  document.querySelector('#app').innerHTML=`<div class="auth-shell"><div class="auth-intro"><div class="eyebrow">NORTE</div><h1>Suas contas autorizadas.</h1><p>O acesso de consultoria depende da autorização do responsável.</p></div><section class="auth-card"><h2>Selecionar conta</h2>${available.own?`<button type="button" class="primary" data-workspace="${escape(available.own.id)}">Minhas finanças</button>`:''}${available.shared.map((entry,index)=>`<div class="bank-item"><h3>Conta compartilhada ${index+1}</h3><p>Permissão de leitura</p><button type="button" data-workspace="${escape(entry.workspaceId)}" ${!entry.accepted?`data-accept="${escape(entry.id)}"`:''}>${entry.accepted?'Abrir conta':'Aceitar e abrir'}</button></div>`).join('')}${!available.own&&!available.shared.length?'<p>Nenhuma conta autorizada para este e-mail. Solicite acesso ao responsável.</p>':''}<button type="button" id="account-logout">Sair</button><p id="workspace-error" role="alert"></p></section></div>`;
- document.querySelector('#account-logout').onclick=async()=>{await client.auth.signOut();location.reload();};
+ document.querySelector('#account-logout').onclick=async()=>{clearAccount();await client.auth.signOut();location.reload();};
  document.querySelectorAll('[data-workspace]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{if(button.dataset.accept)await request('access-accept',{id:button.dataset.accept});workspaceId=button.dataset.workspace;await loadApp();}catch(error){document.querySelector('#workspace-error').textContent=error.message;button.disabled=false;}});
 }
 async function loadApp(){if(loaded){await window.norte.refresh();return;}loaded=true;const script=document.createElement('script');script.src='app.js';document.body.append(script);}
@@ -169,7 +173,8 @@ document.addEventListener('change',event=>{
 });
 function authScreen(mode='login'){
  const recovery=mode==='recovery',signup=mode==='signup',reset=mode==='reset';
- document.querySelector('#app').innerHTML=`<div class="auth-shell"><div class="auth-intro"><div class="eyebrow">NORTE · FINANÇAS PESSOAIS</div><h1>Seu dinheiro.<br>Uma direção.</h1><p>Planeje o mês, acompanhe suas conquistas e veja suas finanças em um só lugar.</p></div><section class="auth-card"><h2>${recovery?'Defina sua nova senha':signup?'Crie sua conta Norte':reset?'Recuperar acesso':'Entre no seu Norte'}</h2><p class="tiny">Cada pessoa tem sua própria conta. Seus registros ficam privados.</p><form id="auth-form">${!recovery?'<div class="field"><label for="auth-email">E-mail</label><input id="auth-email" type="email" name="email" autocomplete="email" required></div>':''}${!reset?`<div class="field"><label for="auth-password">Senha</label><input id="auth-password" type="password" name="password" minlength="${recovery||signup?10:1}" autocomplete="${recovery||signup?'new-password':'current-password'}" required></div>`:''}<div id="auth-error" role="alert"></div><button class="primary" type="submit">${recovery?'Salvar nova senha':signup?'Criar acesso':reset?'Enviar link':'Entrar'}</button></form>${!recovery?`<button class="auth-switch flat" id="auth-switch">${signup||reset?'Já tenho acesso':'Criar minha conta'}</button>${!signup&&!reset?'<button class="auth-switch flat" id="auth-reset">Esqueci minha senha</button>':''}`:''}</section></div>`;
+ document.querySelector('#app').innerHTML=`<div class="auth-shell"><button type="button" class="auth-theme" id="auth-theme">${document.body.classList.contains('light')?'Usar mármore preto':'Usar mármore branco'}</button><div class="auth-intro"><div class="eyebrow">NORTE · FINANÇAS PESSOAIS</div><h1>Seu dinheiro.<br>Uma direção.</h1><p>Planeje o mês, acompanhe suas conquistas e veja suas finanças em um só lugar.</p></div><section class="auth-card"><h2>${recovery?'Defina sua nova senha':signup?'Crie sua conta Norte':reset?'Recuperar acesso':'Entre no seu Norte'}</h2><p class="tiny">Cada pessoa tem sua própria conta. Seus registros ficam privados.</p><form id="auth-form">${!recovery?'<div class="field"><label for="auth-email">E-mail</label><input id="auth-email" type="email" name="email" autocomplete="email" required></div>':''}${!reset?`<div class="field"><label for="auth-password">Senha</label><input id="auth-password" type="password" name="password" minlength="${recovery||signup?10:1}" autocomplete="${recovery||signup?'new-password':'current-password'}" required></div>`:''}<div id="auth-error" role="alert"></div><button class="primary" type="submit">${recovery?'Salvar nova senha':signup?'Criar acesso':reset?'Enviar link':'Entrar'}</button></form>${!recovery?`<button class="auth-switch flat" id="auth-switch">${signup||reset?'Já tenho acesso':'Criar minha conta'}</button>${!signup&&!reset?'<button class="auth-switch flat" id="auth-reset">Esqueci minha senha</button>':''}`:''}</section></div>`;
+ document.querySelector('#auth-theme')?.addEventListener('click',event=>{const light=document.body.classList.toggle('light');event.currentTarget.textContent=light?'Usar mármore preto':'Usar mármore branco';});
  document.querySelector('#auth-switch')?.addEventListener('click',()=>authScreen(signup||reset?'login':'signup'));
  document.querySelector('#auth-reset')?.addEventListener('click',()=>authScreen('reset'));
  document.querySelector('#auth-form').addEventListener('submit',async event=>{
@@ -189,7 +194,7 @@ async function boot(){
  // Authentication and financial data stay in memory, not persistent browser storage.
  try{localStorage.removeItem('sb-'+new URL(config.url).hostname.split('.')[0]+'-auth-token');}catch{}
  client=createClient(config.url,config.key,{auth:{persistSession:false,autoRefreshToken:true,detectSessionInUrl:true}});
- client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;authScreen('recovery');}if(event==='SIGNED_OUT'&&loaded)location.reload();});
+ client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;authScreen('recovery');}if(event==='SIGNED_OUT'){clearAccount();if(loaded)location.reload();}});
  const {data:{session}}=await client.auth.getSession();
  if(recovering)authScreen('recovery');else if(session)await startApp();else authScreen();
 }
