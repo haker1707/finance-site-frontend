@@ -1,4 +1,5 @@
 import {createClient} from '@supabase/supabase-js';
+import {clearFinancial,cardsView,financeTabs,recurringView,forecastView,financialAction} from './financial.js';
 import {accountButton,openAccount} from './account.js';
 import {PluggyConnect} from 'pluggy-connect-sdk';
 import {readXlsx,fromSnapshot,planImport} from '../generated/importer.js';
@@ -10,7 +11,7 @@ let client,revision=0,lastState=null,selectedFile=null,preview=null,loaded=false
 const message=(text,error=false)=>{const node=document.querySelector('#toast');node.textContent=text;node.style.display='block';node.style.background=error?'var(--red)':'var(--accent)';clearTimeout(message.timer);message.timer=setTimeout(()=>node.style.display='none',8000);};
 function download(name,content,type='application/json'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);return name;}
 function filePicker(accept){return new Promise(resolve=>{const input=document.createElement('input');input.type='file';input.accept=accept;input.hidden=true;document.body.append(input);input.addEventListener('change',()=>{const file=input.files[0]||null;input.remove();resolve(file);},{once:true});input.addEventListener('cancel',()=>{input.remove();resolve(null);},{once:true});input.click();});}
-function clearAccount(){accessEpoch++;lastState=null;workspaceId='';revision=0;selectedFile=null;preview=null;window.norte.clearPrivateData?.();const toast=document.querySelector('#toast');if(toast){toast.textContent='';toast.style.display='none';}}
+function clearAccount(){clearFinancial();accessEpoch++;lastState=null;workspaceId='';revision=0;selectedFile=null;preview=null;window.norte.clearPrivateData?.();const toast=document.querySelector('#toast');if(toast){toast.textContent='';toast.style.display='none';}}
 async function request(action,payload={}){
  const epoch=accessEpoch,targetWorkspace=workspaceId;
  const {data:{session},error}=await client.auth.getSession();if(error||!session){clearAccount();authScreen();throw Error('Entre na sua conta novamente.');}
@@ -35,7 +36,7 @@ async function call(action,p={}){
   preview=planImport({book,hash,name:selectedFile.name},p);return preview;
  }
  if(action==='import'){if(!preview)throw Error('Confira a planilha primeiro.');const result=await request('import',{...p,plan:preview});preview=null;return result;}
- if(action==='backup'){const state=await call('state');return download('Norte-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({format:'norte-web-1',exportedAt:new Date().toISOString(),data:{records:state.records,settings:state.settings,imports:state.imports}},null,2));}
+ if(action==='backup'){const state=await call('state');return download('Norte-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({format:'norte-web-1',exportedAt:new Date().toISOString(),data:{records:state.records,settings:state.settings,imports:state.imports,recurringRules:state.recurringRules||[]}},null,2));}
  if(action==='restore'){
   const file=await filePicker('.json');if(!file)return null;if(file.size>18*1024*1024)throw Error('Backup acima de 18 MB.');const backup=JSON.parse(await file.text());
   if(backup.format!=='norte-web-1')throw Error('Selecione um backup JSON do Norte Web. Backups SQLite pertencem ao aplicativo portátil.');
@@ -45,7 +46,7 @@ async function call(action,p={}){
  if(action==='csv'){
   const state=await call('state');const cats=new Map(state.records.filter(r=>r.kind==='category').map(r=>[r.id,r.name]));
   const cell=x=>'"'+String(x??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';
-  const rows=[['Data','Descrição','Natureza','Categoria','Valor (R$)','Origem'],...window.F.ledger(state.records).filter(x=>!p.period||x.date.startsWith(p.period)).map(x=>[x.date,x.description,window.F.TYPES[x.type],cats.get(x.categoryId)||'',(x.amount/100).toFixed(2).replace('.',','),x.source||'Manual'])];
+  const rows=[['Data original','Mês de competência','Descrição','Natureza','Categoria','Valor (R$)','Origem'],...window.F.ledger(state.records).filter(x=>!p.period||x.date.startsWith(p.period)).map(x=>[x.originalDate||x.date,x.date.slice(0,7),x.description,window.F.TYPES[x.type],cats.get(x.categoryId)||'',(x.amount/100).toFixed(2).replace('.',','),x.source||'Manual'])];
   return download('Norte-lancamentos.csv','\ufeff'+rows.map(row=>row.map(cell).join(';')).join('\r\n'),'text/csv;charset=utf-8');
  }
  return request(action,p);
@@ -130,10 +131,10 @@ async function action(action,el){
  }
  throw Error('Ação indisponível.');
 }
-window.norte={web:true,call,action,bankView,accountButton,settingsView:state=>state.role==='consultant'?'<section class="panel"><h1>Acesso do consultor</h1><p>Você pode consultar esta conta. Somente o responsável pode alterar registros, gerenciar acessos e conectar bancos.</p><button data-action="web-accounts">Selecionar conta</button></section>':settingsView(state)+'<section class="panel"><h2>Quem pode acessar</h2><p>Somente você e os consultores que autorizar. Os consultores têm acesso de leitura e não podem convidar outras pessoas.</p><button data-action="web-access">Gerenciar consultores</button></section>',onRender:()=>{
+window.norte={web:true,call,action,cardsView,financeTabs,recurringView,forecastView,financialAction:(action,el,ctx)=>financialAction(action,el,ctx,{call,refresh:()=>window.norte.refresh(),message}),bankView,accountButton,settingsView:state=>state.role==='consultant'?'<section class="panel"><h1>Acesso do consultor</h1><p>Você pode consultar esta conta. Somente o responsável pode alterar registros, gerenciar acessos e conectar bancos.</p><button data-action="web-accounts">Selecionar conta</button></section>':settingsView(state)+'<section class="panel"><h2>Quem pode acessar</h2><p>Somente você e os consultores que autorizar. Os consultores têm acesso de leitura e não podem convidar outras pessoas.</p><button data-action="web-access">Gerenciar consultores</button></section>',onRender:()=>{
   const readonly=lastState?.role==='consultant';document.body.classList.toggle('consultant',readonly);
   if(!readonly)return;
-  const allowed=new Set(['navigate','collapse','csv','prev-page','next-page','schedule','web-logout','web-accounts','web-profile','theme','web-reload','web-bank-filter','web-bank-prev','web-bank-next']);
+  const allowed=new Set(['navigate','collapse','csv','prev-page','next-page','schedule','web-logout','web-accounts','web-profile','theme','web-reload','web-bank-filter','web-bank-prev','web-bank-next','finance-card','finance-back']);
   document.querySelectorAll('[data-action]').forEach(button=>{if(!allowed.has(button.dataset.action)||button.dataset.route==='import')button.hidden=true;});
   document.querySelectorAll('#app form input,#app form select,#app form button').forEach(input=>input.disabled=true);
  },afterLoad:async()=>{if(lastState?.role==='owner'&&lastState.bankEnabled&&bankConnections(lastState).length){try{await sync('',true);}catch(error){message(error.message,true);}}}};
@@ -209,3 +210,5 @@ async function boot(){
 boot().catch(error=>{document.querySelector('#app').textContent='Não foi possível abrir o Norte: '+error.message;});
 
 
+
+document.addEventListener('keydown',event=>{if(event.target.matches('.clickable-card')&&['Enter',' '].includes(event.key)){event.preventDefault();event.target.click();}});

@@ -6,7 +6,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const write=(p,s)=>{fs.mkdirSync(path.dirname(path.join(root,p)),{recursive:true});fs.writeFileSync(path.join(root,p),s);};
 // Bank refunds reduce expenses without being counted as new income.
-const finance=read('core/finance.cjs').replace('({...r,derived:false})','({...r,amount:r.reversal?-r.amount:r.amount,derived:false})');
+const finance=read('core/finance.cjs').replace('({...r,derived:false})','({...r,originalDate:r.date,date:r.invoicePeriod?r.invoicePeriod+"-01":r.date,amount:r.reversal?-r.amount:r.amount,derived:false})');
 write('supabase/functions/_shared/finance.mjs',finance.replace('module.exports=','export default '));
 if(fs.existsSync(path.join(root,'core/database.cjs'))){
 const db=read('core/database.cjs');
@@ -29,6 +29,15 @@ app=app.replace("async function doAction(action,el){", "async function doAction(
 app=app.replace("case 'navigate':route=el.dataset.route;", "case 'navigate':if(innerWidth<=700)document.body.classList.remove('collapsed');route=el.dataset.route;");
 app=app.replace("window.addEventListener('error',", "routes.splice(routes.length-1,0,['bank','Conexão bancária','card']);views.bank=()=>window.norte.bankView(state);views.settings=()=>window.norte.settingsView(state);window.norte.createBankCategory=row=>{const form=row.querySelector('form'),select=form.elements.categoryId;if(!select.dataset.quickCreate){select.remove(select.options.length-1);enableCategoryCreation(form,'entry');select.dataset.quickCreate='true';select.addEventListener('change',()=>{const category=byId(select.value);if(category)form.elements.type.value=category.type;});}select.value='__new_category__';select.dispatchEvent(new Event('change',{bubbles:true}));};\nwindow.addEventListener('error',");
 app=app.replace("refresh().catch(e=>", "const desktopRender=render;render=function(){desktopRender();window.norte.onRender?.();};window.norte.clearPrivateData=()=>{state={records:[],settings:{}};route='dashboard';query='';filter='';page=0;sort='date-desc';chosenFile='';importPlan=null;importOptions={year:'',useGoalList:false,cardSource:'monthly'};document.querySelectorAll('dialog').forEach(d=>{d.close();d.innerHTML='';});};window.norte.refresh=refresh;refresh().then(()=>window.norte.afterLoad()).catch(e=>");
+// Web-only credit/debit views; the desktop source remains compatible.
+app=app.replace("async function doAction(action,el){", "async function doAction(action,el){if(action.startsWith('finance-')){await window.norte.financialAction(action,el,{state,period,render});return;}");
+app=app.replace("['entries','Lançamentos','list']", "['entries','Contas e lançamentos','list']");
+app=app.replace("entries(){let entries=F.ledger(state.records).filter(x=>", "entries(){let entries=F.ledger(state.records).filter(x=>!x.cardId&&");
+app=app.replace("header('Lançamentos','Receitas, despesas e alocações em um só lugar.'", "header('Contas e lançamentos','Débito, Pix, receitas e transferências. O crédito fica na aba Cartões.'");
+app=app.replace("${button('Exportar CSV','csv','','small')}", "${button('Importar extrato CSV','finance-import','','primary small')}${button('Exportar CSV','csv','','small')}");
+app=app.replace("${dateBR(e.date)}</td>", "${dateBR(e.originalDate||e.date)}${e.invoicePeriod?'<br><span class=\"tiny\">Fatura '+esc(e.invoicePeriod)+'</span>':''}</td>");
+app=app.replace("entry:[field('description','Descrição'),date,", "entry:[field('description','Descrição'),date,...(r.cardId?[field('invoicePeriod','Mês da fatura','month')]:[field('account','Conta (opcional)','text',{optional:true})]),");
+app=app.replace("routes.splice(routes.length-1", "const debitView=views.entries;views.entries=()=>window.norte.financeTabs('entries')+debitView()+window.norte.recurringView(state,period);views.cards=()=>window.norte.cardsView(state,period,{entryTable});const overview=views.dashboard;views.dashboard=()=>overview()+window.norte.forecastView(state,period);routes.splice(routes.length-1");
 write('web/dist/app.js',app);
 write('web/dist/finance.js',finance.replace('module.exports=','window.F='));
 const url=process.env.NORTE_SUPABASE_URL||'',key=process.env.NORTE_SUPABASE_PUBLISHABLE_KEY||'';
