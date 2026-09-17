@@ -1,6 +1,6 @@
 # Norte · site
 
-Versão web do aplicativo de finanças pessoais, com Supabase Auth, armazenamento privado e conexão bancária opcional pelo Meu Pluggy. Base inicial vazia. Layout adaptado a celular e computador.
+Versão web do aplicativo de finanças pessoais, com Supabase Auth, armazenamento privado e conexão bancária opcional por Open Finance com Pluggy Connect. Base inicial vazia. Layout adaptado a celular e computador.
 
 Backend privado: https://github.com/haker1707/fiance-backend
 
@@ -15,7 +15,7 @@ O workflow já contém a URL e a chave publicável do projeto `msyvyjuezujoxfesw
 3. Em **Settings → Pages → Build and deployment → Source**, selecione **GitHub Actions**.
 4. Em **Actions → Publicar Norte → Run workflow**, publique o site.
 5. Implante o backend conforme o README do repositório privado.
-6. No Supabase, em **Authentication → URL Configuration**, configure Site URL e Redirect URLs com `https://haker1707.github.io/finance-site-frontend/`. Ative o provedor de e-mail. Crie seu acesso no site e confirme o e-mail. Use o mesmo endereço configurado em `NORTE_OWNER_EMAIL` no backend. Se desativar novos cadastros, crie previamente as contas dos consultores pelo painel Supabase.
+6. No Supabase, em **Authentication → URL Configuration**, configure Site URL e Redirect URLs com `https://haker1707.github.io/finance-site-frontend/`. Ative o provedor de e-mail. Crie seu acesso no site e confirme o e-mail. Cada cadastro confirmado possui sua própria área financeira. Configure SMTP próprio no Supabase para confirmações de usuários externos.
 
 URL prevista: https://haker1707.github.io/finance-site-frontend/
 
@@ -31,7 +31,11 @@ As sessões e os dados financeiros não são persistidos em localStorage, Indexe
 
 ## Conexão bancária
 
-Conecte seus bancos e cartões no Meu Pluggy primeiro. No Norte, use **Conexão bancária → Adicionar banco ou cartão** uma vez por banco. Todas as contas e cartões disponibilizados por essa autorização serão consultados. Você pode manter vários bancos conectados, renovar ou remover cada vínculo separadamente e sincronizar um banco ou todos em sequência. O servidor precisa das credenciais de uma aplicação Development com conector 200 habilitado. Esse é o conector do Meu Pluggy para as instituições disponíveis na sua conta; não é exclusivo do Nubank. A cobertura e os dados retornados dependem do banco e do consentimento. A tela identifica os cartões pelo nome e últimos dígitos, incluindo o final informado nas movimentações de cartões adicionais ou virtuais, quando disponível. Use o filtro de conta/cartão para conferir o histórico. Leia os passos completos no backend.
+No Norte, use **Conexão bancária → Conectar meu banco**, escolha a instituição e autorize o compartilhamento no banco. O usuário não precisa de conta Meu Pluggy, API ou códigos. É possível manter vários bancos, renovar ou remover vínculos e filtrar movimentações por conta/cartão.
+
+O backend precisa de uma aplicação Pluggy habilitada para clientes reais e Open Finance, com credenciais privadas no Supabase. Novas conexões usam instituições brasileiras Open Finance disponíveis; cobertura e produtos dependem da Pluggy, do banco e do consentimento.
+
+Se o usuário sair para o aplicativo do banco, o webhook registra a autorização pendente. Ao retornar ao Norte com a mesma conta, o servidor confere e recupera o vínculo. Pode ser necessário entrar novamente após um redirecionamento completo. O servidor não importa transações com o site fechado. As tentativas expiram em 24h ou podem ser canceladas. Conexões antigas do Meu Pluggy já vinculadas permanecem compatíveis.
 
 Compras confirmadas no cartão e salários identificados são lançados automaticamente. Pix, transferências, pagamentos de faturas e demais créditos precisam de classificação. Estornos de despesa reduzem a despesa. Pagamentos de fatura e transferências não alteram novamente o saldo calculado. Pendências do banco aparecem na lista sem entrar nos totais. Compras manuais anteriores à conexão precisam de conciliação pelo usuário.
 
