@@ -6,6 +6,8 @@ Backend privado: https://github.com/haker1707/fiance-backend
 
 ## Ativar o site
 
+O workflow já contém a URL e a chave publicável do projeto `msyvyjuezujoxfeswyrx`. Não é necessário cadastrar essas duas variáveis novamente. As variáveis abaixo continuam disponíveis para trocar de projeto ou substituir a chave pública no futuro.
+
 1. No Supabase, crie um projeto e guarde a senha do banco. Copie a **Project URL** e a **Publishable key** em Connect/API Keys. Não use `service_role` ou `sb_secret_` no frontend.
 2. Neste repositório, abra **Settings → Secrets and variables → Actions → Variables**. Crie:
    - `NORTE_SUPABASE_URL`: URL HTTPS do projeto.
@@ -17,7 +19,7 @@ Backend privado: https://github.com/haker1707/fiance-backend
 
 URL prevista: https://haker1707.github.io/finance-site-frontend/
 
-Sem as variáveis, a publicação exibe “Configuração pendente”. Sem implantar o backend, o login pode funcionar, mas os registros não serão carregados. A URL acima só fica disponível depois que o Pages estiver ativado e o workflow concluir.
+Sem uma configuração pública no build, a publicação exibe “Configuração pendente”. O projeto atual já está configurado no workflow. Sem implantar o backend, o login pode funcionar, mas os registros não serão carregados. A URL acima só fica disponível depois que o Pages estiver ativado e o workflow concluir.
 
 ## Recursos
 
@@ -43,3 +45,4 @@ npm run build --prefix web
 Sirva `web/dist` por HTTP/HTTPS. As variáveis de ambiente públicas são lidas no build. Dependências ficam no lockfile. O build reutiliza `ui`, as regras de `core/finance.cjs` e a leitura de planilhas de `core/importer.cjs`.
 
 Não foram executados testes desta versão, por solicitação do usuário. Compilar os arquivos não confirma o funcionamento de login, persistência ou conexão bancária em produção.
+
