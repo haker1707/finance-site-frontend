@@ -31,7 +31,7 @@ As sessões e os dados financeiros não são persistidos em localStorage, Indexe
 
 ## Conexão bancária
 
-Conecte o Nubank no Meu Pluggy primeiro. Depois use **Conexão bancária → Conectar Meu Pluggy**. O servidor precisa das credenciais de uma aplicação Development com conector 200 habilitado. Leia os passos completos no backend.
+Conecte seus bancos e cartões no Meu Pluggy primeiro. No Norte, use **Conexão bancária → Adicionar banco ou cartão** uma vez por banco. Todas as contas e cartões disponibilizados por essa autorização serão consultados. Você pode manter vários bancos conectados, renovar ou remover cada vínculo separadamente e sincronizar um banco ou todos em sequência. O servidor precisa das credenciais de uma aplicação Development com conector 200 habilitado. Esse é o conector do Meu Pluggy para as instituições disponíveis na sua conta; não é exclusivo do Nubank. A cobertura e os dados retornados dependem do banco e do consentimento. A tela identifica os cartões pelo nome e últimos dígitos, incluindo o final informado nas movimentações de cartões adicionais ou virtuais, quando disponível. Use o filtro de conta/cartão para conferir o histórico. Leia os passos completos no backend.
 
 Compras confirmadas no cartão e salários identificados são lançados automaticamente. Pix, transferências, pagamentos de faturas e demais créditos precisam de classificação. Estornos de despesa reduzem a despesa. Pagamentos de fatura e transferências não alteram novamente o saldo calculado. Pendências do banco aparecem na lista sem entrar nos totais. Compras manuais anteriores à conexão precisam de conciliação pelo usuário.
 
@@ -47,3 +47,4 @@ npm run build --prefix web
 Sirva `web/dist` por HTTP/HTTPS. As variáveis de ambiente públicas são lidas no build. Dependências ficam no lockfile. O build reutiliza `ui`, as regras de `core/finance.cjs` e a leitura de planilhas de `core/importer.cjs`.
 
 Não foram executados testes desta versão, por solicitação do usuário. Compilar os arquivos não confirma o funcionamento de login, persistência ou conexão bancária em produção.
+

@@ -45,23 +45,53 @@ async function call(action,p={}){
  return request(action,p);
 }
 function settingsView(state){return `<div class="heading"><div><div class="eyebrow">SUA CONTA</div><h1>Dados e preferências</h1><p>Seu histórico privado, disponível nos seus dispositivos.</p></div></div><div class="equal-col"><section class="panel"><h2>Backup dos registros</h2><p>Baixe uma cópia em JSON. Ao restaurar, o Norte baixa primeiro uma cópia dos registros atuais. Guarde esse arquivo em um local privado.</p><div class="row"><button class="primary" data-action="backup">Exportar backup</button><button data-action="restore">Restaurar backup</button></div><div class="notice">O backup do site inclui registros, categorias e preferências. Autorizações bancárias ficam fora do arquivo. O backup SQLite do aplicativo portátil não é compatível com esta restauração.</div></section><section class="panel"><h2>Sua conta no Supabase</h2><p>Os registros são salvos no servidor. É preciso estar conectado à internet para consultar e salvar alterações.</p><button data-action="web-reload">Atualizar dados</button><div class="balance-block"><h3>Aparência</h3><p>Tema ${state.settings.theme==='light'?'claro':'escuro'}</p><button data-action="theme">Alternar tema</button></div><p class="export-note">O site não cria backups automáticos locais. A retenção de backups do banco depende do plano contratado no Supabase.</p></section></div><section class="panel"><h2>Importações</h2>${state.imports.length?state.imports.map(i=>`<p>${escape(i.name)} · ${escape(i.year)} · ${escape(i.date)}</p>`).join(''):'<p>Nenhuma importação realizada.</p>'}</section>`;}
-let bankPage=0,bankFilter='review';
+let bankPage=0,bankFilter='review',bankAccountFilter='';
+const bankConnections=state=>state.connections||(state.connection?[state.connection]:[]);
 function bankView(state){
- const inbox=state.bankInbox||[];const pending=inbox.filter(t=>t.decision==='review');
- const rows=(bankFilter==='all'?inbox:pending).slice().sort((a,b)=>b.date.localeCompare(a.date));bankPage=Math.min(bankPage,Math.max(0,Math.ceil(rows.length/30)-1));
- const conn=state.connection;
- return `<div class="heading"><div><div class="eyebrow">OPEN FINANCE</div><h1>Conexão bancária</h1><p>Nubank pelo Meu Pluggy · ${pending.length} movimentações para revisar.</p></div></div><section class="panel"><h2>${conn?'Meu Pluggy conectado':'Conecte seu Nubank'}</h2><p>Primeiro, conecte o Nubank no <a href="https://meu.pluggy.ai" target="_blank" rel="noopener noreferrer">Meu Pluggy</a>. Depois, autorize o Norte a consultar essa conexão. Os dados passam pela Pluggy e ficam no seu projeto Supabase.</p>${!state.bankEnabled?'<div class="notice">A integração está preparada, mas as credenciais Pluggy ainda precisam ser configuradas no servidor.</div>':''}<div class="row"><button class="primary" data-action="web-connect" ${!state.bankEnabled?'disabled':''}>${conn?'Renovar autorização':'Conectar Meu Pluggy'}</button>${conn?'<button data-action="web-sync">Sincronizar agora</button><button class="danger" data-action="web-disconnect">Desvincular</button>':''}</div><p class="connection-status tiny">${conn?.lastSync?'Última consulta do Norte: '+escape(new Date(conn.lastSync).toLocaleString('pt-BR')):'Ainda sem sincronização.'}</p><div class="notice">O Meu Pluggy atualiza o banco a cada 24 horas. O Norte consulta os dados disponíveis ao abrir e pelo botão acima. Compras confirmadas e salários identificados entram automaticamente; os demais movimentos ficam para revisão. Lançamentos bancários usam a data informada pelo banco, sem gerar parcelas futuras. Se você já cadastrou uma compra manualmente, confira a sobreposição.</div><details><summary>Recuperar uma conexão autorizada</summary><p class="tiny">Se fechou a janela antes de concluir, informe o Item ID da conexão criada pelo Norte no painel Pluggy. Só aceitamos conexões vinculadas à sua conta Norte.</p><input id="recover-item" aria-label="Item ID" placeholder="Item ID"><button data-action="web-recover-item">Recuperar</button></details></section><section class="panel"><div class="panel-head"><h2>Movimentações</h2><button data-action="web-bank-filter">${bankFilter==='review'?'Mostrar todas':'Mostrar somente revisão'}</button></div>${rows.length?rows.slice(bankPage*30,(bankPage+1)*30).map(tx=>bankRow(tx,state)).join(''):'<div class="empty"><h2>Nenhuma movimentação nesta lista</h2><p>Os dados aparecerão após a conexão e a sincronização.</p></div>'}<div class="pagination"><span>${rows.length} movimentações · página ${bankPage+1}</span><div class="row"><button data-action="web-bank-prev" ${bankPage===0?'disabled':''}>Anterior</button><button data-action="web-bank-next" ${(bankPage+1)*30>=rows.length?'disabled':''}>Próxima</button></div></div></section>`;
+ const inbox=state.bankInbox||[],linked=bankConnections(state);
+ const accountNames=new Map();
+ for(const conn of linked)for(const account of conn.accounts||[])accountNames.set(account.id,(conn.label?conn.label+' · ':'')+account.name+(account.last4?' · final '+account.last4:''));
+ for(const tx of inbox)if(!accountNames.has(tx.accountId))accountNames.set(tx.accountId,tx.accountName||'Conta');
+ if(bankAccountFilter&&!accountNames.has(bankAccountFilter))bankAccountFilter='';
+ const selected=inbox.filter(tx=>!bankAccountFilter||tx.accountId===bankAccountFilter);
+ const pending=selected.filter(t=>t.decision==='review');
+ const rows=(bankFilter==='all'?selected:pending).slice().sort((a,b)=>b.date.localeCompare(a.date));
+ bankPage=Math.min(bankPage,Math.max(0,Math.ceil(rows.length/30)-1));
+ return `<div class="heading"><div><div class="eyebrow">OPEN FINANCE</div><h1>Bancos e cartões</h1><p>Suas instituições pelo Meu Pluggy · ${pending.length} movimentações para revisar.</p></div></div>
+ <section class="panel"><h2>Conecte seus bancos e cartões</h2><p>Adicione suas instituições no <a href="https://meu.pluggy.ai" target="_blank" rel="noopener noreferrer">Meu Pluggy</a> e autorize cada banco aqui. Todos os cartões e contas disponibilizados nessa autorização serão consultados. A disponibilidade depende do banco e do consentimento concedido.</p>
+ ${!state.bankEnabled?'<div class="notice">Para ativar a conexão, configure as credenciais Pluggy no servidor.</div>':''}
+ <div class="field"><label for="bank-label">Nome para identificar o novo banco (opcional)</label><input id="bank-label" maxlength="100" placeholder="Nome do banco ou da instituição" autocomplete="off"></div>
+ <div class="row"><button class="primary" data-action="web-connect" ${!state.bankEnabled?'disabled':''}>Adicionar banco ou cartão</button>${linked.length?`<button data-action="web-sync" ${!state.bankEnabled?'disabled':''}>Sincronizar todos</button>`:''}</div>
+ <div class="notice">Autorize uma conexão por banco; não é necessário reconectar separadamente cada cartão do mesmo banco. A consulta do Norte usa os dados disponíveis no Meu Pluggy, que atualiza as conexões diariamente. Compras confirmadas e salários identificados entram automaticamente. Pagamentos de fatura, transferências e outros créditos precisam de revisão. Pendências e moedas diferentes de BRL ficam fora dos totais. Compras manuais precisam de conciliação para evitar duplicidade.</div>
+ <details><summary>Recuperar uma conexão autorizada</summary><p class="tiny">Informe o Item ID de uma conexão criada pelo Norte. O vínculo com sua conta é conferido no servidor.</p><input id="recover-item" aria-label="Item ID" placeholder="Item ID"><button data-action="web-recover-item" ${!state.bankEnabled?'disabled':''}>Recuperar</button></details></section>
+ <section class="panel"><h2>Instituições conectadas</h2>${linked.map((conn,index)=>`<article class="bank-item"><h3>${escape(conn.label||conn.accounts?.[0]?.name||'Banco conectado '+(index+1))}</h3><p class="tiny">${conn.lastSync?'Última consulta: '+escape(new Date(conn.lastSync).toLocaleString('pt-BR')):'Aguardando primeira sincronização.'}</p>${(conn.accounts||[]).length?`<ul>${conn.accounts.map(account=>`<li>${account.card?'Cartão':'Conta'} · ${escape(account.name)}${account.last4?' · final '+escape(account.last4):''}${account.currency&&account.currency!=='BRL'?' · '+escape(account.currency):''}</li>`).join('')}</ul>`:'<p class="tiny">As contas e cartões aparecerão após a primeira sincronização concluída.</p>'}<div class="row"><button data-action="web-sync" data-item="${escape(conn.itemId)}" ${!state.bankEnabled?'disabled':''}>Sincronizar este banco</button><button data-action="web-connect" data-item="${escape(conn.itemId)}" ${!state.bankEnabled?'disabled':''}>Renovar autorização</button><button class="danger" data-action="web-disconnect" data-item="${escape(conn.itemId)}">Desconectar</button></div></article>`).join('')||'<p>Nenhum banco conectado.</p>'}</section>
+ <section class="panel"><div class="panel-head"><h2>Movimentações</h2><button data-action="web-bank-filter">${bankFilter==='review'?'Mostrar todas':'Mostrar somente revisão'}</button></div><div class="field"><label for="bank-account-filter">Conta ou cartão</label><select id="bank-account-filter"><option value="">Todas as contas e cartões</option>${Array.from(accountNames,([id,name])=>`<option value="${escape(id)}" ${id===bankAccountFilter?'selected':''}>${escape(name)}</option>`).join('')}</select></div>${rows.length?rows.slice(bankPage*30,(bankPage+1)*30).map(tx=>bankRow(tx,state)).join(''):'<div class="empty"><h2>Nenhuma movimentação nesta lista</h2><p>Os dados aparecerão após a conexão e a sincronização.</p></div>'}<div class="pagination"><span>${rows.length} movimentações · página ${bankPage+1}</span><div class="row"><button data-action="web-bank-prev" ${bankPage===0?'disabled':''}>Anterior</button><button data-action="web-bank-next" ${(bankPage+1)*30>=rows.length?'disabled':''}>Próxima</button></div></div></section>`;
 }
 function bankRow(tx,state){
+ const institution=bankConnections(state).find(conn=>conn.itemId===tx.itemId)?.label;
  const ready=tx.status==='POSTED'&&tx.currency==='BRL'&&tx.amount>0&&!tx.entryId;
  const status=tx.decision==='imported'?'Importado':tx.decision==='ignored'?'Ignorado':tx.status==='PENDING'?'Pendente no banco':'Revisar';
- return `<article class="bank-item" data-bank-key="${escape(tx.key)}"><div class="bank-meta"><div class="bank-description"><strong>${escape(tx.description)}</strong><p class="tiny">${escape(tx.date)} · ${escape(tx.accountName)} · ${tx.type==='CREDIT'?'Entrada/crédito':'Saída/débito'}${tx.installment?' · parcela '+escape(tx.installment)+'/'+escape(tx.totalInstallments):''}</p></div><div><strong>${tx.currency==='BRL'?money(tx.amount):escape(tx.currency)+' '+escape(tx.amount/100)}</strong><p><span class="tag">${status}</span></p></div></div>${ready?`<form class="bank-controls"><select name="type" data-bank-type aria-label="Natureza da movimentação"><option value="">Escolha a natureza…</option><option value="despesa">Despesa</option><option value="receita">Receita</option><option value="transferencia">Transferência entre contas</option><option value="fatura">Pagamento de fatura</option><option value="estorno">Estorno de despesa</option><option value="investimento">Investimento</option><option value="divida">Pagamento de dívida</option></select><select name="categoryId" data-bank-category aria-label="Categoria"><option value="">Selecione a categoria…</option>${state.records.filter(c=>c.kind==='category'&&!c.archived).map(c=>`<option value="${escape(c.id)}" data-type="${c.type}">${escape(c.name)} · ${escape(window.F.TYPES[c.type])}</option>`).join('')}<option value="__new_category__">+ Adicionar nova categoria</option></select><button data-action="web-classify">Confirmar</button><button data-action="web-ignore">Ignorar</button></form>`:''}</article>`;
+ return `<article class="bank-item" data-bank-key="${escape(tx.key)}"><div class="bank-meta"><div class="bank-description"><strong>${escape(tx.description)}</strong><p class="tiny">${escape(tx.date)} · ${institution?escape(institution)+' · ':''}${escape(tx.accountName)}${tx.cardLast4?' · final '+escape(tx.cardLast4):''} · ${tx.type==='CREDIT'?'Entrada/crédito':'Saída/débito'}${tx.installment?' · parcela '+escape(tx.installment)+'/'+escape(tx.totalInstallments):''}</p></div><div><strong>${tx.currency==='BRL'?money(tx.amount):escape(tx.currency)+' '+escape(tx.amount/100)}</strong><p><span class="tag">${status}</span></p></div></div>${ready?`<form class="bank-controls"><select name="type" data-bank-type aria-label="Natureza da movimentação"><option value="">Escolha a natureza…</option><option value="despesa">Despesa</option><option value="receita">Receita</option><option value="transferencia">Transferência entre contas</option><option value="fatura">Pagamento de fatura</option><option value="estorno">Estorno de despesa</option><option value="investimento">Investimento</option><option value="divida">Pagamento de dívida</option></select><select name="categoryId" data-bank-category aria-label="Categoria"><option value="">Selecione a categoria…</option>${state.records.filter(c=>c.kind==='category'&&!c.archived).map(c=>`<option value="${escape(c.id)}" data-type="${c.type}">${escape(c.name)} · ${escape(window.F.TYPES[c.type])}</option>`).join('')}<option value="__new_category__">+ Adicionar nova categoria</option></select><button data-action="web-classify">Confirmar</button><button data-action="web-ignore">Ignorar</button></form>`:''}</article>`;
 }
-async function sync(){if(syncing)return;syncing=true;message('Consultando as movimentações disponíveis…');try{const result=await request('bank-sync');await window.norte.refresh();message(`${result.count} movimentações consultadas.`);}finally{syncing=false;}}
-async function connect(){
- const result=await request('bank-token');if(widget)await widget.destroy();
+async function sync(itemId='',onlyStale=false){
+ if(syncing){message('Já há uma sincronização em andamento.');return;}
+ const linked=bankConnections(lastState).filter(conn=>(!itemId||conn.itemId===itemId)&&(!onlyStale||!conn.lastSync||Date.now()-Date.parse(conn.lastSync)>3600000));
+ if(!linked.length){if(!onlyStale)message('Adicione um banco antes de sincronizar.',true);return;}
+ syncing=true;const errors=[];let count=0,completed=0;
+ try{
+  for(const [index,conn] of linked.entries()){
+   message(`Consultando ${conn.label||'banco '+(index+1)} (${index+1}/${linked.length})…`);
+   try{const result=await request('bank-sync',{itemId:conn.itemId});count+=result.count;completed++;}
+   catch(error){errors.push((conn.label||'Banco '+(index+1))+': '+error.message);}
+  }
+ }finally{syncing=false;await window.norte.refresh();}
+ message(errors.length?`${completed}/${linked.length} bancos sincronizados. ${errors.join(' · ')}`:`${count} movimentações consultadas em ${completed} banco(s).`,Boolean(errors.length));
+}
+async function connect(itemId=''){
+ const label=itemId?'':document.querySelector('#bank-label')?.value.trim()||'';
+ const result=await request('bank-token',itemId?{itemId}:{});if(widget)await widget.destroy();
  widget=new PluggyConnect({connectToken:result.connectToken,connectorIds:[200],selectedConnectorId:200,includeSandbox:false,updateItem:result.itemId,language:'pt',theme:lastState.settings.theme,
-  onSuccess:async({item})=>{try{await request('bank-attach',{itemId:item.id});await window.norte.refresh();await sync();}catch(error){message(error.message,true);}},
+  onSuccess:async({item})=>{try{await request('bank-attach',{itemId:item.id,label});await window.norte.refresh();await sync(item.id);}catch(error){message(error.message,true);}},
   onError:()=>message('A conexão ainda não foi concluída. Confira sua autorização no Meu Pluggy e tente novamente.',true)
  });await widget.init();
 }
@@ -70,10 +100,10 @@ async function action(action,el){
  if(action==='web-access')return accessDialog();
  if(action==='web-logout'){await client.auth.signOut();location.reload();return;}
  if(action==='web-reload')return;
- if(action==='web-connect')return connect();
- if(action==='web-sync')return sync();
- if(action==='web-disconnect'){if(confirm('Desvincular o Norte? Seus registros serão mantidos. Para revogar o compartilhamento bancário, acesse o Meu Pluggy ou Nubank.'))await request('bank-disconnect');return;}
- if(action==='web-recover-item'){await request('bank-attach',{itemId:document.querySelector('#recover-item').value.trim()});return sync();}
+ if(action==='web-connect')return connect(el.dataset.item||'');
+ if(action==='web-sync')return sync(el.dataset.item||'');
+ if(action==='web-disconnect'){if(confirm('Desconectar este banco do Norte? O histórico será mantido. Para revogar o compartilhamento, acesse o Meu Pluggy ou a instituição.'))await request('bank-disconnect',{itemId:el.dataset.item});return;}
+ if(action==='web-recover-item'){const itemId=document.querySelector('#recover-item').value.trim();await request('bank-attach',{itemId,label:document.querySelector('#bank-label')?.value.trim()||''});await window.norte.refresh();return sync(itemId);}
  if(action==='web-bank-filter'){bankFilter=bankFilter==='review'?'all':'review';bankPage=0;return;}
  if(action==='web-bank-prev'){bankPage=Math.max(0,bankPage-1);return;}
  if(action==='web-bank-next'){bankPage++;return;}
@@ -89,7 +119,7 @@ window.norte={web:true,call,action,bankView,settingsView:state=>state.role==='co
   const allowed=new Set(['navigate','collapse','csv','prev-page','next-page','schedule','web-logout','web-accounts','web-reload','web-bank-filter','web-bank-prev','web-bank-next']);
   document.querySelectorAll('[data-action]').forEach(button=>{if(!allowed.has(button.dataset.action)||button.dataset.route==='import')button.hidden=true;});
   document.querySelectorAll('#app form input,#app form select,#app form button').forEach(input=>input.disabled=true);
- },afterLoad:async()=>{if(lastState?.role==='owner'&&lastState.connection&&(!lastState.connection.lastSync||Date.now()-Date.parse(lastState.connection.lastSync)>3600000)){try{await sync();}catch(error){message(error.message,true);}}}};
+ },afterLoad:async()=>{if(lastState?.role==='owner'&&lastState.bankEnabled&&bankConnections(lastState).length){try{await sync('',true);}catch(error){message(error.message,true);}}}};
 
 async function accessDialog(){
  const rows=await request('access-list');
@@ -113,6 +143,7 @@ setInterval(()=>{if(loaded&&workspaceId&&document.visibilityState==='visible')re
 
 // Category creation in bank review uses the same inline dialog as all other category fields.
 document.addEventListener('change',event=>{
+ if(event.target.id==='bank-account-filter'){bankAccountFilter=event.target.value;bankPage=0;window.norte.refresh().catch(error=>message(error.message,true));return;}
  const row=event.target.closest('[data-bank-key]');if(!row)return;
  if(event.target.matches('[data-bank-type]')){const type=event.target.value==='estorno'?'despesa':event.target.value;const select=row.querySelector('[data-bank-category]');for(const option of select.options)option.hidden=Boolean(option.dataset.type&&option.dataset.type!==type);select.value='';select.disabled=type==='transferencia';}
  if(event.target.matches('[data-bank-category]')&&event.target.value==='__new_category__'){
@@ -146,4 +177,5 @@ async function boot(){
  if(recovering)authScreen('recovery');else if(session)await startApp();else authScreen();
 }
 boot().catch(error=>{document.querySelector('#app').textContent='Não foi possível abrir o Norte: '+error.message;});
+
 
