@@ -5,19 +5,20 @@ import {readXlsx,fromSnapshot,planImport} from '../generated/importer.js';
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((n||0)/100);
 const config=window.NORTE_CONFIG||{};
-let client,revision=0,lastState=null,selectedFile=null,preview=null,loaded=false,recovering=location.hash.includes('type=recovery'),syncing=false,widget=null;
+let client,revision=0,lastState=null,selectedFile=null,preview=null,loaded=false,recovering=location.hash.includes('type=recovery'),syncing=false,widget=null,workspaceId='';
 const message=(text,error=false)=>{const node=document.querySelector('#toast');node.textContent=text;node.style.display='block';node.style.background=error?'var(--red)':'var(--accent)';clearTimeout(message.timer);message.timer=setTimeout(()=>node.style.display='none',8000);};
 function download(name,content,type='application/json'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);return name;}
 function filePicker(accept){return new Promise(resolve=>{const input=document.createElement('input');input.type='file';input.accept=accept;input.hidden=true;document.body.append(input);input.addEventListener('change',()=>{const file=input.files[0]||null;input.remove();resolve(file);},{once:true});input.addEventListener('cancel',()=>{input.remove();resolve(null);},{once:true});input.click();});}
 async function request(action,payload={}){
  const {data:{session},error}=await client.auth.getSession();if(error||!session)throw Error('Entre na sua conta novamente.');
- const response=await fetch(config.url+'/functions/v1/norte',{method:'POST',headers:{'Content-Type':'application/json',apikey:config.key,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action,payload,revision}),signal:AbortSignal.timeout(action==='bank-sync'?170000:40000)});
+ const response=await fetch(config.url+'/functions/v1/norte',{method:'POST',headers:{'Content-Type':'application/json',apikey:config.key,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action,payload,revision,workspaceId}),signal:AbortSignal.timeout(action==='bank-sync'?170000:40000)});
  let result;try{result=await response.json();}catch{throw Error('O servidor ainda não está disponível. Confira a implantação da função Norte.');}
- if(!response.ok||result.error)throw Error(result.error||'Não foi possível concluir.');
+ if(!response.ok||result.error){if(response.status===401||response.status===403){lastState=null;workspaceId='';window.norte.clearPrivateData?.();document.querySelector('#app').innerHTML='<section class="auth-card"><h2>Acesso indisponível</h2><p>Sua autorização terminou ou a sessão expirou. Entre novamente para consultar as contas disponíveis.</p><a href="./">Voltar ao acesso</a></section>';}throw Error(result.error||'Não foi possível concluir.');}
  if(result.revision!==undefined)revision=result.revision;
  return result.value;
 }
 async function call(action,p={}){
+ if(lastState?.role==='consultant'&&!['state','csv'].includes(action))throw Error('O acesso do consultor permite somente leitura.');
  if(action==='state'){lastState=await request('state');revision=lastState.revision;return lastState;}
  if(action==='chooseImport'){selectedFile=await filePicker('.xlsx,.json');preview=null;return selectedFile?.name||null;}
  if(action==='preview'){
@@ -64,6 +65,8 @@ async function connect(){
  });await widget.init();
 }
 async function action(action,el){
+ if(action==='web-accounts')return chooseWorkspace();
+ if(action==='web-access')return accessDialog();
  if(action==='web-logout'){await client.auth.signOut();location.reload();return;}
  if(action==='web-reload')return;
  if(action==='web-connect')return connect();
@@ -79,7 +82,33 @@ async function action(action,el){
  }
  throw Error('Ação indisponível.');
 }
-window.norte={web:true,call,action,bankView,settingsView,afterLoad:async()=>{if(lastState.connection&&(!lastState.connection.lastSync||Date.now()-Date.parse(lastState.connection.lastSync)>3600000)){try{await sync();}catch(error){message(error.message,true);}}}};
+window.norte={web:true,call,action,bankView,settingsView:state=>state.role==='consultant'?'<section class="panel"><h1>Acesso do consultor</h1><p>Você pode consultar esta conta. Somente o responsável pode alterar registros, gerenciar acessos e conectar bancos.</p><button data-action="web-accounts">Selecionar conta</button></section>':settingsView(state)+'<section class="panel"><h2>Quem pode acessar</h2><p>Somente você e os consultores que autorizar. Os consultores têm acesso de leitura e não podem convidar outras pessoas.</p><button data-action="web-access">Gerenciar consultores</button></section>',onRender:()=>{
+  const readonly=lastState?.role==='consultant';document.body.classList.toggle('consultant',readonly);
+  if(!readonly)return;
+  const allowed=new Set(['navigate','collapse','csv','prev-page','next-page','schedule','web-logout','web-accounts','web-reload','web-bank-filter','web-bank-prev','web-bank-next']);
+  document.querySelectorAll('[data-action]').forEach(button=>{if(!allowed.has(button.dataset.action)||button.dataset.route==='import')button.hidden=true;});
+  document.querySelectorAll('#app form input,#app form select,#app form button').forEach(input=>input.disabled=true);
+ },afterLoad:async()=>{if(lastState?.role==='owner'&&lastState.connection&&(!lastState.connection.lastSync||Date.now()-Date.parse(lastState.connection.lastSync)>3600000)){try{await sync();}catch(error){message(error.message,true);}}}};
+
+async function accessDialog(){
+ const rows=await request('access-list');
+ const dialog=document.querySelector('#modal');
+ dialog.innerHTML=`<div class="dialog-heading"><h2>Consultores autorizados</h2><button type="button" id="close-access">Fechar</button></div><p>Cadastre o e-mail do consultor. Ele deve entrar no site com esse mesmo e-mail, confirmado, e aceitar o acesso. O Norte não envia convites por e-mail.</p><form id="grant-access"><div class="field"><label for="consultant-email">E-mail do consultor</label><input id="consultant-email" name="email" type="email" autocomplete="off" required></div><button class="primary" type="submit">Autorizar leitura</button></form><div id="access-error" role="alert"></div>${rows.map(row=>`<div class="bank-item"><strong>${escape(row.consultant_email)}</strong><p>${row.accepted_at?'Acesso aceito':'Aguardando aceite'}</p><button type="button" data-revoke="${escape(row.id)}">Revogar acesso</button></div>`).join('')||'<p>Nenhum consultor autorizado.</p>'}<p class="tiny">A revogação bloqueia as próximas consultas. Informações já visualizadas ou exportadas pelo consultor não podem ser recolhidas.</p>`;
+ if(!dialog.open)dialog.showModal();
+ dialog.querySelector('#close-access').onclick=()=>dialog.close();
+ dialog.querySelector('form').addEventListener('submit',async event=>{event.preventDefault();event.stopPropagation();const button=event.currentTarget.querySelector('button');button.disabled=true;try{await request('access-grant',{email:event.currentTarget.elements.email.value});await accessDialog();}catch(error){dialog.querySelector('#access-error').textContent=error.message;button.disabled=false;}});
+ dialog.querySelectorAll('[data-revoke]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{await request('access-revoke',{id:button.dataset.revoke});await accessDialog();}catch(error){dialog.querySelector('#access-error').textContent=error.message;button.disabled=false;}});
+}
+async function chooseWorkspace(){
+ const available=await request('workspaces');
+ if(!loaded&&available.own&&!available.shared.length){workspaceId=available.own.id;return loadApp();}
+ lastState=null;workspaceId='';window.norte.clearPrivateData?.();
+ document.querySelector('#app').innerHTML=`<div class="auth-shell"><div class="auth-intro"><div class="eyebrow">NORTE</div><h1>Suas contas autorizadas.</h1><p>O acesso de consultoria depende da autorização do responsável.</p></div><section class="auth-card"><h2>Selecionar conta</h2>${available.own?`<button type="button" class="primary" data-workspace="${escape(available.own.id)}">Minha conta · responsável</button>`:''}${available.shared.map((entry,index)=>`<div class="bank-item"><h3>Conta compartilhada ${index+1}</h3><p>Permissão de leitura</p><button type="button" data-workspace="${escape(entry.workspaceId)}" ${!entry.accepted?`data-accept="${escape(entry.id)}"`:''}>${entry.accepted?'Abrir conta':'Aceitar e abrir'}</button></div>`).join('')}${!available.own&&!available.shared.length?'<p>Nenhuma conta autorizada para este e-mail. Solicite acesso ao responsável.</p>':''}<button type="button" id="account-logout">Sair</button><p id="workspace-error" role="alert"></p></section></div>`;
+ document.querySelector('#account-logout').onclick=async()=>{await client.auth.signOut();location.reload();};
+ document.querySelectorAll('[data-workspace]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{if(button.dataset.accept)await request('access-accept',{id:button.dataset.accept});workspaceId=button.dataset.workspace;await loadApp();}catch(error){document.querySelector('#workspace-error').textContent=error.message;button.disabled=false;}});
+}
+async function loadApp(){if(loaded){await window.norte.refresh();return;}loaded=true;const script=document.createElement('script');script.src='app.js';document.body.append(script);}
+setInterval(()=>{if(loaded&&workspaceId&&document.visibilityState==='visible')request('access-check').catch(error=>message(error.message,true));},60000);
 
 // Category creation in bank review uses the same inline dialog as all other category fields.
 document.addEventListener('change',event=>{
@@ -105,10 +134,12 @@ function authScreen(mode='login'){
   }catch(error){document.querySelector('#auth-error').textContent=error.message;}finally{button.disabled=false;}
  });
 }
-async function startApp(){if(loaded)return;loaded=true;const script=document.createElement('script');script.src='app.js';document.body.append(script);}
+async function startApp(){await chooseWorkspace();}
 async function boot(){
  if(!config.url||!config.key){document.querySelector('#app').innerHTML='<div class="auth-shell"><div class="auth-intro"><div class="eyebrow">NORTE</div><h1>Quase pronto.</h1><p>O site foi publicado. Falta conectar o projeto Supabase para ativar seu acesso e armazenamento.</p></div><section class="auth-card"><h2>Configuração pendente</h2><p>Configure as variáveis públicas do projeto no GitHub e publique novamente, seguindo o guia de implantação do repositório.</p><p>Nenhum dado financeiro foi carregado.</p></section></div>';return;}
- client=createClient(config.url,config.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+ // Authentication and financial data stay in memory, not persistent browser storage.
+ try{localStorage.removeItem('sb-'+new URL(config.url).hostname.split('.')[0]+'-auth-token');}catch{}
+ client=createClient(config.url,config.key,{auth:{persistSession:false,autoRefreshToken:true,detectSessionInUrl:true}});
  client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;authScreen('recovery');}if(event==='SIGNED_OUT'&&loaded)location.reload();});
  const {data:{session}}=await client.auth.getSession();
  if(recovering)authScreen('recovery');else if(session)await startApp();else authScreen();

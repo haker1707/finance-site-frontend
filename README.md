@@ -15,7 +15,7 @@ O workflow já contém a URL e a chave publicável do projeto `msyvyjuezujoxfesw
 3. Em **Settings → Pages → Build and deployment → Source**, selecione **GitHub Actions**.
 4. Em **Actions → Publicar Norte → Run workflow**, publique o site.
 5. Implante o backend conforme o README do repositório privado.
-6. No Supabase, em **Authentication → URL Configuration**, configure Site URL e Redirect URLs com `https://haker1707.github.io/finance-site-frontend/`. Ative o provedor de e-mail. Crie seu acesso no site e confirme o e-mail. Use o mesmo endereço configurado em `NORTE_OWNER_EMAIL` no backend. Após criar sua conta, você pode desativar novos cadastros no Supabase.
+6. No Supabase, em **Authentication → URL Configuration**, configure Site URL e Redirect URLs com `https://haker1707.github.io/finance-site-frontend/`. Ative o provedor de e-mail. Crie seu acesso no site e confirme o e-mail. Use o mesmo endereço configurado em `NORTE_OWNER_EMAIL` no backend. Se desativar novos cadastros, crie previamente as contas dos consultores pelo painel Supabase.
 
 URL prevista: https://haker1707.github.io/finance-site-frontend/
 
@@ -25,7 +25,9 @@ Sem uma configuração pública no build, a publicação exibe “Configuração
 
 Lançamentos, categorias com criação dentro dos formulários, orçamento, cartões e parcelas, dívidas, contas, resumo anual, metas e aportes, reserva, patrimônio, simulador, conquistas, desejos, importação da planilha de referência, exportação CSV e backup JSON. Nenhuma planilha ou registro pessoal está neste repositório.
 
-O site lê/grava os dados no Supabase; não funciona offline. Os registros são privados por usuário. Esta implantação é limitada ao e-mail do proprietário no servidor. Credenciais da Pluggy ficam somente nas Edge Function Secrets do Supabase.
+O site lê/grava os dados no Supabase; não funciona offline. O responsável pode autorizar consultores por e-mail em **Dados e preferências → Gerenciar consultores**. O consultor entra com seu próprio e-mail confirmado, aceita a autorização e recebe acesso somente de leitura. O responsável pode revogar o acesso. Criar um cadastro não concede acesso aos dados de outras pessoas. E-mails reais e permissões ficam somente no Supabase.
+
+As sessões e os dados financeiros não são persistidos em localStorage, IndexedDB ou cache offline. Você precisa entrar novamente ao recarregar a página. Os dados ficam temporariamente na memória do navegador para exibição; downloads de CSV e backup continuam sendo ações explícitas. Credenciais da Pluggy ficam somente nas Edge Function Secrets do Supabase.
 
 ## Conexão bancária
 
@@ -45,4 +47,3 @@ npm run build --prefix web
 Sirva `web/dist` por HTTP/HTTPS. As variáveis de ambiente públicas são lidas no build. Dependências ficam no lockfile. O build reutiliza `ui`, as regras de `core/finance.cjs` e a leitura de planilhas de `core/importer.cjs`.
 
 Não foram executados testes desta versão, por solicitação do usuário. Compilar os arquivos não confirma o funcionamento de login, persistência ou conexão bancária em produção.
-
