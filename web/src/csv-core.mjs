@@ -1,3 +1,4 @@
+import {inferNature,analyzeDuplicates,duplicateIndex} from './import-rules.mjs';
 import {catalogMatch,catalogNormalize} from './catalog.mjs';
 import {installmentInfo,categoryHint,merchantName} from './intelligence.mjs';
 // Pure rules shared by the browser preview and the authenticated server.
@@ -55,18 +56,20 @@ export async function parseCSV(text,context){
  const cols=['date','description','amount'].map(k=>mapping[k]);if(cols.some(i=>!Number.isInteger(i)||i<0||i>=headers.length)||new Set(cols).size!==3)throw Error('Escolha três colunas diferentes para data, descrição e valor.');
  if(mapping.id!==-1&&(!Number.isInteger(mapping.id)||mapping.id<0||mapping.id>=headers.length||cols.includes(mapping.id)))throw Error('Escolha uma coluna distinta para o identificador, ou nenhuma.');
  if(!known&&(typeof context.bank!=='string'||!context.bank.trim()||context.bank.length>80))throw Error('Informe o nome do banco (até 80 caracteres).');
+ const fileHash=await digest(text),bankName=known?'Nubank':context.bank.trim(),signConvention=known?(credit?'negative-credit':'positive-credit'):(context.signConvention||'manual');
+ if(!['negative-credit','positive-credit','manual'].includes(signConvention))throw Error('Convenção de sinais inválida.');
  const scope=credit?'card:'+context.cardId:'account:'+normalize(context.account),occurrences=new Map(),seenIds=new Set();
  return Promise.all(rows.map(async(raw,index)=>{
   const rawDate=raw[mapping.date]||'',rawAmount=raw[mapping.amount]||'',description=(raw[mapping.description]||'').trim(),date=csvDate(rawDate,mapping.dateFormat),providerId=mapping.id<0?'':(raw[mapping.id]||'').trim();
   const issues=[];let signed=null;if(raw.length!==headers.length)issues.push('Quantidade de colunas diferente do cabeçalho.');if(!date)issues.push('Data inválida para o formato escolhido.');if(!description||description.length>2000)issues.push('Descrição ausente ou muito longa.');try{signed=cents(rawAmount,mapping.decimal);if(!signed)issues.push('Valor zero: confirme o valor ou exclua a linha da seleção.');}catch(e){issues.push(e.message);}
   const repeatedId=providerId&&seenIds.has(providerId);if(providerId)seenIds.add(providerId);if(mapping.id>=0&&(!providerId||providerId.length>200||repeatedId))issues.push('Identificador ausente, longo ou repetido.');
-  const identity=JSON.stringify([scope,date,normalize(description),signed]),occurrence=(occurrences.get(identity)||0)+1;occurrences.set(identity,occurrence);
+  const legacyIdentity=JSON.stringify([scope,date,normalize(description),signed]),occurrence=(occurrences.get(legacyIdentity)||0)+1;occurrences.set(legacyIdentity,occurrence);
   // Keep the original Nubank identities compatible with previously imported records.
-  const identityText=known&&!issues.length?(credit?identity+'|'+occurrence:'nubank-account|'+providerId):'csv-v2|'+format+'|'+normalize(context.bank||'Nubank')+'|'+scope+'|'+(providerId&&!repeatedId?'id|'+providerId:JSON.stringify(raw)+'|'+occurrence);
-  const key=await digest(identityText),label=normalize(description),installment=Boolean(installmentInfo(description));
-  const payment=/pagamento (?:de )?fatura/.test(label)||(credit&&/pagamento recebido/.test(label));
-  const type=!known||issues.length?'':payment?'fatura':credit?(signed>0?'despesa':/estorno|reembolso/.test(label)?'estorno':''):signed<0?(/pix|transferencia/.test(label)?'':'despesa'):(/salario/.test(label)?'receita':'');
-  return {index,key,scope,date,description,amount:signed===null?0:Math.abs(signed),signed,type,installment,repeated:Boolean(repeatedId||occurrence>1),cardId:context.cardId||'',account:credit?'':context.account.trim(),invoicePeriod:credit?context.period:'',providerId,issues,raw,rawDate,rawAmount,format};
+  const identityText=known&&!issues.length?(credit?legacyIdentity+'|'+occurrence:'nubank-account|'+providerId):'csv-v2|'+format+'|'+normalize(context.bank||'Nubank')+'|'+scope+'|'+(providerId&&!repeatedId?'id|'+providerId:JSON.stringify(raw)+'|'+occurrence);
+  const key=await digest(identityText),installment=Boolean(installmentInfo(description));
+  const identity={version:3,bank:bankName,format,signConvention,fileHash,fileRowKey:await digest(JSON.stringify(['csv-v3-file',normalize(bankName),scope,fileHash,index])),providerKey:providerId&&providerId.length<=200&&(known||context.providerIdsReliable===true)?await digest(JSON.stringify(['csv-v3-provider',normalize(bankName),scope,providerId])):''};
+  const row={index,key,identity,bank:bankName,scope,date,description,amount:signed===null?0:Math.abs(signed),signed,signConvention,installment,repeated:Boolean(repeatedId||occurrence>1),cardId:context.cardId||'',account:credit?'':context.account.trim(),invoicePeriod:credit?context.period:'',providerId,issues,raw,rawDate,rawAmount,format};
+  return {...row,type:inferNature(row).type};
  }));
 }
 const merchant=value=>normalize(installmentInfo(value)?.base||String(value||'').replace(/\s*·\s*1\/1\s*$/,''));
@@ -87,10 +90,7 @@ export function suggestion(row,records,index,rules=[],catalog=[],recurring=new S
  const category=records.find(r=>r.kind==='category'&&!r.archived&&r.type===type&&catalogNormalize(r.name)===catalogNormalize(name));
  return {categoryId:category?.id||'',categoryName:category?.name||name,suggestionSource:explicit?'catalog':possibleSubscription&&!match?'recurrence':'default',possibleSubscription,merchant:match?.merchant||merchantName(row.description),...(match?{catalogRuleId:match.rule_id,catalogVersion:match.version}:{}),ruleApplied:Boolean(explicit)};
 }
-export function duplicates(row,records,ledger,index){
- index??=reviewIndex(records,ledger);const exact=index.exact.has(row.key),possible=row.repeated||(index.matches.get(row.amount+'|'+merchant(row.description))||[]).some(r=>row.cardId?(r.cardId===row.cardId&&(r.date.startsWith(row.invoicePeriod)||(r.originalDate||r.date)===row.date)):(r.originalDate||r.date)===row.date);
- return {exact,possible:!exact&&Boolean(possible)};
-}
+export async function duplicates(row,records,ledger,index){return (await analyzeDuplicates([{...row,_batch:true,fileIndex:0,originalIndex:row.index}],duplicateIndex(records,ledger.length?ledger:records.filter(r=>r.kind==='entry'))))[0];}
 export const recurringKey=r=>JSON.stringify([r.cardId?'card:'+r.cardId:'account:'+normalize(r.account||''),normalize(r.description)]);
 export function recurringCandidates(records){
  const groups=new Map();
