@@ -48,3 +48,25 @@ body.web::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:non
 body.light .estimate-notice{color:#785000}body.light .estimate-warning{color:#916100}
 .invoice-months summary{cursor:pointer;line-height:1.7;font-weight:600;padding:8px 0}.invoice-months details[open]>summary{border-bottom:1px solid var(--line);margin-bottom:20px}.invoice-months .bank-item{margin-top:16px}
 @media(max-width:700px){.invoice-months summary{font-size:14px}.estimate-notice{font-size:13px}}
+
+/* Compact monthly import and saved statements. */
+.compact-head,.compact-line{display:grid;grid-template-columns:55px 96px minmax(140px,2fr) minmax(80px,1fr) minmax(90px,1fr) minmax(90px,1fr) 78px;gap:10px;align-items:center}
+.compact-head{font-size:.78rem;font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line)}
+.compact-record{padding:10px 12px;border-bottom:1px solid var(--line);scroll-margin:28px;border-left:3px solid transparent;overflow-wrap:anywhere}
+.compact-record small{display:block;font-size:.72rem;font-weight:400;color:var(--muted)}
+.compact-date,.compact-secondary{font-size:.82rem}.compact-description{min-width:0;font-size:.88rem}.compact-value{text-align:right;font-size:.88rem}
+.compact-flags{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:5px 0 0 65px}.compact-flags:empty{display:none}.compact-flags .tag{font-size:.7rem;padding:3px 7px}
+.compact-editor{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px}.compact-editor .csv-row{padding:0;border:0}
+.compact-select input,.import-footer input[type=checkbox]{width:auto;accent-color:var(--accent)}
+.month-heading{display:block;width:100%;text-align:left;padding:14px 12px;font-weight:600;font-size:1rem;background:transparent;white-space:normal}
+.review-month{margin:14px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden}.review-month>.row,.review-month>p{margin:10px 12px}.review-filters{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}
+.import-footer{position:sticky;bottom:-24px;z-index:3;background:var(--panel,#161616);border-top:1px solid var(--accent);box-shadow:0 -8px 22px #0002;padding:12px 16px;margin:16px -8px -8px;border-radius:12px}.import-footer p{margin:4px 0 8px}.import-footer .csv-include{margin:8px 0;font-size:.84rem}.import-footer>.primary{margin-top:8px}
+.light .import-footer{background:#fffdf7}.review-errors{margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:10px}.review-errors .error-link{display:block}
+.error-link{color:var(--red,#ffaaa0);border:0;background:transparent;text-align:left;text-decoration:underline;text-underline-offset:3px;padding:4px;font-size:.82rem;white-space:normal}.error-link:focus-visible{outline:2px solid var(--accent)}
+.gold-highlight{border-left-color:#e2bd65!important;background:#d6ac4829;outline:2px solid #d9b65f;outline-offset:-2px;transition:background .3s}.light .gold-highlight{background:#e0ba4c33;outline-color:#926a13}
+.pending-review{color:#edca79;border-color:#a68134}.light .pending-review{color:#72500b}.record-details{font-size:.8rem;margin:7px 0 0 65px}.record-details summary{cursor:pointer;color:var(--accent)}.record-details p{margin:7px 0}.record-details button{margin-right:7px}
+.compact-file{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.compact-file[hidden]{display:none}.file-line{display:flex;align-items:center;gap:12px;min-width:0}.file-line strong{font-size:.85rem;overflow-wrap:anywhere;flex:1}.file-line span{font-size:.76rem;color:var(--muted)}.compact-file>label{font-size:.75rem}.compact-file input{padding:7px}.compact-file>details,.compact-file>p{grid-column:1/-1}.is-duplicate{opacity:.7}
+@media(max-width:800px){.compact-head{display:none}.compact-line{grid-template-columns:34px 78px minmax(85px,1fr) 94px;gap:6px}.compact-secondary{display:none}.compact-line>:last-child{grid-column:3/5;justify-self:end}.compact-value{font-size:.8rem}.compact-flags,.record-details{margin-left:40px}.compact-record{padding:9px 6px}.compact-file{grid-template-columns:1fr}.file-line{flex-wrap:wrap}.file-line strong{flex-basis:60%}.compact-file>label{max-width:220px}.import-footer{bottom:-16px;padding:10px;font-size:.8rem}.import-footer .tiny{font-size:.7rem}}
+@media(prefers-reduced-motion:reduce){.gold-highlight{transition:none;scroll-behavior:auto}}
+
+.web .compact-flags .error-link,.web .review-errors .error-link{min-height:32px}.web .compact-record .small{min-height:34px}.csv-dialog .compact-editor{scroll-margin-bottom:280px}

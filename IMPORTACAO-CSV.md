@@ -59,3 +59,18 @@ A conciliação automática exige uma única compra compatível no mesmo cartão
 Totais mensais mostram confirmado/cadastrado, estimado e compromisso previsto. Diante de correspondências pendentes, o total combinado aguarda conferência para não apresentar uma soma potencialmente duplicada. Gráficos, orçamento e resumo anual existentes continuam usando apenas lançamentos e cronogramas cadastrados, sem incluir estas novas estimativas. Previsões de assinaturas são separadas.
 
 Limitações: descrições substancialmente diferentes podem formar compras distintas; nenhuma heurística garante identificar todas as compras de todos os bancos. Itens sem marcador explícito não geram parcelas. Projeções além do calendário suportado não são geradas. A validação em uso real permanece pendente, pois esta entrega utiliza somente revisão, compilação e acompanhamento da publicação, sem testes ou importação dos anexos.
+
+
+## Conferência compacta e posterior
+
+A seleção de arquivos é agrupada por mês/ano, sem preencher silenciosamente meses desconhecidos. Crédito usa o mês da fatura; débito usa a data da movimentação. Arquivos de débito com vários meses aparecem referenciados nos respectivos grupos, com uma única configuração e uma única importação.
+
+A conferência exibe listas mensais compactas, filtros, seleção por mês e paginação. O formulário completo abre por lançamento. Os avisos vinculados a registros abrem o mês e a página corretos, destacam a linha em dourado e focam o campo quando conhecido. A localização usa o índice do arquivo no lote e o índice do registro, inclusive quando nomes de arquivos se repetem. Erros gerais continuam sem um destino de linha.
+
+“Importar agora e conferir depois” salva registros válidos com `reviewStatus: pending`. O fluxo com conferência salva `reviewStatus: reviewed` e `reviewedAt` gerado no servidor. Ambos entram no financeiro como cobranças reais; previsões continuam separadas. Editar preserva o estado de conferência. A ação explícita `review-entries` confere até 5.000 registros por requisição, somente do titular, em uma gravação com controle de revisão. Registros anteriores sem metadados aparecem como “Sem conferência registrada”, sem alteração retroativa.
+
+Novas importações guardam `csvFile` e `csvRow`, além dos valores originais já existentes. Esses metadados e a conferência não podem ser sobrescritos pelo formulário comum. A restauração de backup valida os novos campos. A importação mantém validação no servidor, conferência explícita de correções/duplicidades, proteção de reimportação e atomicidade do lote. Desmarcar registros problemáticos exige autorização explícita para prosseguir; a conferência posterior não ignora erros.
+
+As telas de cartões e de contas mantêm listas por mês, edição, detalhes de origem e conferência individual ou em seleção. Consultores autorizados continuam somente com leitura; a conexão bancária permanece bloqueada.
+
+Entrega verificada por revisão de código, análise de sintaxe e compilação. Não foram executados testes automatizados ou manuais, nem importados arquivos financeiros ou dados de exemplo. Validação em uso real permanece pendente.
