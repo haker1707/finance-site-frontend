@@ -1,3 +1,4 @@
+import {openInvoicePayment,openPlanSchedule} from './payments-ui.js';
 import {inferNature,natureLabel} from './import-rules.mjs';
 import {openNatureRules} from './nature-ui.js';
 import {installmentsView} from './installments-ui.js';
@@ -95,6 +96,8 @@ function recurringDialog(state,key,mode,deps){
  d.querySelector('form').onsubmit=async e=>{e.preventDefault();e.stopPropagation();if(saving)return;try{if(epoch!==generation)throw Error('A conta mudou.');const f=e.currentTarget.elements,amount=cents(f.amount.value);if(amount<=0)throw Error('Informe um valor positivo.');saving=true;d.querySelectorAll('button').forEach(b=>b.disabled=true);await deps.call('recurring-save',{key,name:f.name.value,amount,nextDate:f.nextDate.value,status:f.status.value});if(epoch!==generation)return;d.close();await deps.refresh();deps.message('Recorrência salva.');}catch(err){if(d.isConnected){d.querySelector('[data-error]').textContent=err.message;d.querySelectorAll('button').forEach(b=>b.disabled=false);}}finally{saving=false;}};
 }
 export async function financialAction(action,el,ctx,deps){
+ if(action==='finance-invoice-payment')return openInvoicePayment(ctx.state,el.dataset.card,el.dataset.period,{...deps,getState:()=>window.norte.paymentState()});
+ if(action==='finance-plan-schedule')return openPlanSchedule(ctx.state,el.dataset.plan,{...deps,getState:()=>window.norte.paymentState()});
  if(action==='finance-nature-rules')return openNatureRules(ctx.state,deps);
  if(action==='finance-notifications'){const cardId=el.dataset.card||selectedCard;return openCardNotifications(ctx.state,cardId,async item=>{cardTab='invoices';selectedCard=cardId;revealCardPending(ctx.state,ctx.period,cardId,item,ctx.render);if(item.type==='installment'&&ctx.state.role==='owner'){try{await intelligenceAction('finance-installment-resolve',{dataset:{id:item.id}},ctx,deps);}catch(e){deps.message(e.message,true);}}});}
  if(await savedReviewAction(action,el,ctx,deps))return;
