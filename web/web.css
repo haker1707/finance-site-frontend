@@ -42,3 +42,9 @@ body.web::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:non
 .csv-row .tag{white-space:normal}.csv-dialog [role=alert]{color:var(--red);white-space:pre-wrap}.csv-dialog [data-summary]{padding:16px;background:var(--raised);border:1px solid var(--line);border-radius:12px;line-height:1.8}
 .csv-dialog input:disabled,.csv-dialog select:disabled{opacity:.6}.csv-dialog .pagination{gap:12px;flex-wrap:wrap}
 @media(max-width:700px){.csv-dialog{padding:18px}.csv-row .form-grid{grid-template-columns:1fr}.csv-row .panel-head{align-items:flex-start;flex-direction:column}.finance-tabs button{flex:1}.clickable-card .row{flex-wrap:wrap}}
+
+.estimate-warning{color:#e3b341;font-size:22px;vertical-align:middle;margin-right:6px}
+.estimate-notice{color:#ecd082;line-height:1.7;padding:10px 14px;border-left:3px solid #d9a52e;background:rgba(217,165,46,.08)}
+body.light .estimate-notice{color:#785000}body.light .estimate-warning{color:#916100}
+.invoice-months summary{cursor:pointer;line-height:1.7;font-weight:600;padding:8px 0}.invoice-months details[open]>summary{border-bottom:1px solid var(--line);margin-bottom:20px}.invoice-months .bank-item{margin-top:16px}
+@media(max-width:700px){.invoice-months summary{font-size:14px}.estimate-notice{font-size:13px}}

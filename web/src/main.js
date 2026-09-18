@@ -1,3 +1,4 @@
+import {entryMeta,entryActions,rulesView,categoryDialog} from './intelligence-ui.js';
 import {createClient} from '@supabase/supabase-js';
 import {clearFinancial,cardsView,financeTabs,recurringView,forecastView,financialAction} from './financial.js';
 import {accountButton,openAccount} from './account.js';
@@ -36,7 +37,7 @@ async function call(action,p={}){
   preview=planImport({book,hash,name:selectedFile.name},p);return preview;
  }
  if(action==='import'){if(!preview)throw Error('Confira a planilha primeiro.');const result=await request('import',{...p,plan:preview});preview=null;return result;}
- if(action==='backup'){const state=await call('state');return download('Norte-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({format:'norte-web-1',exportedAt:new Date().toISOString(),data:{records:state.records,settings:state.settings,imports:state.imports,recurringRules:state.recurringRules||[]}},null,2));}
+ if(action==='backup'){const state=await call('state');return download('Norte-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({format:'norte-web-1',exportedAt:new Date().toISOString(),data:{records:state.records,settings:state.settings,imports:state.imports,recurringRules:state.recurringRules||[],categoryRules:state.categoryRules||[],installmentPlans:state.installmentPlans||[],installmentIgnored:state.installmentIgnored||[]}},null,2));}
  if(action==='restore'){
   const file=await filePicker('.json');if(!file)return null;if(file.size>18*1024*1024)throw Error('Backup acima de 18 MB.');const backup=JSON.parse(await file.text());
   if(backup.format!=='norte-web-1')throw Error('Selecione um backup JSON do Norte Web. Backups SQLite pertencem ao aplicativo portátil.');
@@ -131,10 +132,10 @@ async function action(action,el){
  }
  throw Error('Ação indisponível.');
 }
-window.norte={web:true,call,action,cardsView,financeTabs,recurringView,forecastView,financialAction:(action,el,ctx)=>financialAction(action,el,ctx,{call,refresh:()=>window.norte.refresh(),message}),bankView,accountButton,settingsView:state=>state.role==='consultant'?'<section class="panel"><h1>Acesso do consultor</h1><p>Você pode consultar esta conta. Somente o responsável pode alterar registros, gerenciar acessos e conectar bancos.</p><button data-action="web-accounts">Selecionar conta</button></section>':settingsView(state)+'<section class="panel"><h2>Quem pode acessar</h2><p>Somente você e os consultores que autorizar. Os consultores têm acesso de leitura e não podem convidar outras pessoas.</p><button data-action="web-access">Gerenciar consultores</button></section>',onRender:()=>{
+window.norte={web:true,entryMeta,entryActions,rulesView,offerCategoryRule:entry=>categoryDialog(lastState,entry,{call,refresh:()=>window.norte.refresh(),message}),call,action,cardsView,financeTabs,recurringView,forecastView,financialAction:(action,el,ctx)=>financialAction(action,el,ctx,{call,refresh:()=>window.norte.refresh(),message}),bankView,accountButton,settingsView:state=>state.role==='consultant'?'<section class="panel"><h1>Acesso do consultor</h1><p>Você pode consultar esta conta. Somente o responsável pode alterar registros, gerenciar acessos e conectar bancos.</p><button data-action="web-accounts">Selecionar conta</button></section>':settingsView(state)+'<section class="panel"><h2>Quem pode acessar</h2><p>Somente você e os consultores que autorizar. Os consultores têm acesso de leitura e não podem convidar outras pessoas.</p><button data-action="web-access">Gerenciar consultores</button></section>',onRender:()=>{
   const readonly=lastState?.role==='consultant';document.body.classList.toggle('consultant',readonly);
   if(!readonly)return;
-  const allowed=new Set(['navigate','collapse','csv','prev-page','next-page','schedule','web-logout','web-accounts','web-profile','theme','web-reload','web-bank-filter','web-bank-prev','web-bank-next','finance-card','finance-back']);
+  const allowed=new Set(['navigate','collapse','csv','prev-page','next-page','schedule','web-logout','web-accounts','web-profile','theme','web-reload','web-bank-filter','web-bank-prev','web-bank-next','finance-card','finance-back','finance-month']);
   document.querySelectorAll('[data-action]').forEach(button=>{if(!allowed.has(button.dataset.action)||button.dataset.route==='import')button.hidden=true;});
   document.querySelectorAll('#app form input,#app form select,#app form button').forEach(input=>input.disabled=true);
  },afterLoad:async()=>{if(lastState?.role==='owner'&&lastState.bankEnabled&&bankConnections(lastState).length){try{await sync('',true);}catch(error){message(error.message,true);}}}};

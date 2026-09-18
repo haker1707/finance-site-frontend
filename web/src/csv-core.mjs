@@ -1,3 +1,4 @@
+import {installmentInfo,categoryHint,merchantName} from './intelligence.mjs';
 // Pure rules shared by the browser preview and the authenticated server.
 export const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 export const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&!isNaN(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value&&+value.slice(0,4)>=1900&&+value.slice(0,4)<=2200;
@@ -61,24 +62,24 @@ export async function parseCSV(text,context){
   const identity=JSON.stringify([scope,date,normalize(description),signed]),occurrence=(occurrences.get(identity)||0)+1;occurrences.set(identity,occurrence);
   // Keep the original Nubank identities compatible with previously imported records.
   const identityText=known&&!issues.length?(credit?identity+'|'+occurrence:'nubank-account|'+providerId):'csv-v2|'+format+'|'+normalize(context.bank||'Nubank')+'|'+scope+'|'+(providerId&&!repeatedId?'id|'+providerId:JSON.stringify(raw)+'|'+occurrence);
-  const key=await digest(identityText),label=normalize(description),installment=/parcela\s+\d+\s*\/\s*\d+|\b\d+\s*\/\s*\d+\b/i.test(description);
+  const key=await digest(identityText),label=normalize(description),installment=Boolean(installmentInfo(description));
   const payment=/pagamento (?:de )?fatura/.test(label)||(credit&&/pagamento recebido/.test(label));
   const type=!known||issues.length?'':payment?'fatura':credit?(signed>0?'despesa':/estorno|reembolso/.test(label)?'estorno':''):signed<0?(/pix|transferencia/.test(label)?'':'despesa'):(/salario/.test(label)?'receita':'');
   return {index,key,scope,date,description,amount:signed===null?0:Math.abs(signed),signed,type,installment,repeated:Boolean(repeatedId||occurrence>1),cardId:context.cardId||'',account:credit?'':context.account.trim(),invoicePeriod:credit?context.period:'',providerId,issues,raw,rawDate,rawAmount,format};
  }));
 }
 const categoryRules=[[/netflix|spotify|amazon prime|disney|youtube|icloud|google one|assinatura|openai|chatgpt/,'Assinaturas'],[/mercado|supermercado|atacadao|assai|carrefour/,'Supermercado'],[/ifood|restaurante|lanchonete|padaria|pizzaria/,'Alimentação'],[/uber|99app|posto|combustivel|estacionamento/,'Transporte'],[/farmacia|drogaria|hospital|clinica/,'Saúde'],[/escola|curso|faculdade|livraria/,'Educação'],[/energia|eletric|agua|internet|aluguel/,'Moradia']];
-const merchant=value=>normalize(String(value||'').replace(/\s*[·-]?\s*(?:Parcela\s*)?\d+\/\d+\s*$/i,''));
+const merchant=value=>normalize(installmentInfo(value)?.base||String(value||'').replace(/\s*·\s*1\/1\s*$/,''));
 export function reviewIndex(records,ledger){
  const history=new Map(),matches=new Map();
  for(const r of records){if(r.kind!=='entry')continue;const key=r.type+'|'+normalize(r.description);const ids=history.get(key)||new Set();ids.add(r.categoryId);history.set(key,ids);}
  for(const r of ledger){const key=Math.abs(r.amount)+'|'+merchant(r.description);const list=matches.get(key)||[];list.push(r);matches.set(key,list);}
  return {history,matches,categories:records.filter(r=>r.kind==='category'&&!r.archived),exact:new Set(records.filter(r=>r.csvKey).map(r=>r.csvKey))};
 }
-export function suggestion(row,records,index){
+export function suggestion(row,records,index,rules=[]){
  const type=row.type==='estorno'?'despesa':row.type;if(!type||type==='transferencia')return {categoryId:'',categoryName:''};
- index??=reviewIndex(records,[]);const ids=[...(index.history.get(type+'|'+normalize(row.description))||[])];const known=ids.length===1?index.categories.find(r=>r.id===ids[0]):null;
- const name=known?.name||(type==='fatura'?'Pagamento de fatura':type==='receita'?'Recebimentos':categoryRules.find(([re])=>re.test(normalize(row.description)))?.[1]||'');
+ const learned=categoryHint(row,records,rules);if(learned)return learned;index??=reviewIndex(records,[]);const ids=[...(index.history.get(type+'|'+normalize(row.description))||[])];const known=ids.length===1?index.categories.find(r=>r.id===ids[0]):null;
+ const name=known?.name||(type==='fatura'?'Pagamento de fatura':type==='receita'?'Recebimentos':merchantName(row.description)==='Mercado Livre'?'Compras online':categoryRules.find(([re])=>re.test(normalize(row.description)))?.[1]||({despesa:'Outros',investimento:'Investimentos',divida:'Pagamento de dívidas',saldo:'Saldo inicial'}[type]||''));
  const category=known||index.categories.find(r=>r.type===type&&normalize(r.name)===normalize(name));return {categoryId:category?.id||'',categoryName:name};
 }
 export function duplicates(row,records,ledger,index){
@@ -88,7 +89,7 @@ export function duplicates(row,records,ledger,index){
 export const recurringKey=r=>JSON.stringify([r.cardId?'card:'+r.cardId:'account:'+normalize(r.account||''),normalize(r.description)]);
 export function recurringCandidates(records){
  const groups=new Map();
- for(const record of records){const r=record.kind==='purchase'&&record.count===1?{...record,kind:'entry',type:'despesa',description:record.name}:record;if(r.kind!=='entry'||r.type!=='despesa'||r.reversal||r.installment||/parcela|\b\d+\s*\/\s*\d+\b/i.test(r.description))continue;const key=recurringKey(r);if(!normalize(r.description))continue;const a=groups.get(key)||[];a.push(r);groups.set(key,a);}
+ for(const record of records){const r=record.kind==='purchase'&&record.count===1?{...record,kind:'entry',type:'despesa',description:record.name}:record;if(r.kind!=='entry'||r.type!=='despesa'||r.reversal||r.installment||installmentInfo(r.description))continue;const key=recurringKey(r);if(!normalize(r.description))continue;const a=groups.get(key)||[];a.push(r);groups.set(key,a);}
  const result=[];
  for(const [key,rows]of groups){rows.sort((a,b)=>a.date.localeCompare(b.date));const byMonth=new Map();for(const r of rows){const m=r.date.slice(0,7);if(byMonth.has(m))byMonth.set(m,null);else byMonth.set(m,r);}const a=[...byMonth.values()].filter(Boolean);if(a.length<2)continue;
  let chain=[a[a.length-1]];for(let i=a.length-2;i>=0;i--){const next=chain[0],days=(Date.parse(next.date)-Date.parse(a[i].date))/86400000;if(days<20||days>40||Math.abs(next.amount-a[i].amount)/Math.max(next.amount,a[i].amount)>.15)break;chain.unshift(a[i]);}

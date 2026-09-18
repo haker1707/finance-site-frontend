@@ -38,6 +38,10 @@ app=app.replace("${button('Exportar CSV','csv','','small')}", "${button('Importa
 app=app.replace("${dateBR(e.date)}</td>", "${dateBR(e.originalDate||e.date)}${e.invoicePeriod?'<br><span class=\"tiny\">Fatura '+esc(e.invoicePeriod)+'</span>':''}</td>");
 app=app.replace("entry:[field('description','Descrição'),date,", "entry:[field('description','Descrição'),date,...(r.cardId?[field('invoicePeriod','Mês da fatura','month')]:[field('account','Conta (opcional)','text',{optional:true})]),");
 app=app.replace("routes.splice(routes.length-1", "const debitView=views.entries;views.entries=()=>window.norte.financeTabs('entries')+debitView()+window.norte.recurringView(state,period);views.cards=()=>window.norte.cardsView(state,period,{entryTable});const overview=views.dashboard;views.dashboard=()=>overview()+window.norte.forecastView(state,period);routes.splice(routes.length-1");
+app=app.replace('${esc(e.description)}${e.derived?', '${esc(e.description)}<br>${window.norte.entryMeta(e)}${e.derived?');
+app=app.replace(':actions(e)}</td>', ':actions(e)}${window.norte.entryActions(e)}</td>');
+app=app.replace("await refresh();toast('Registro salvo.');", "await refresh();toast('Registro salvo.');if(kind==='entry'&&r.id&&out.type!=='transferencia'&&r.categoryId!==out.categoryId)window.norte.offerCategoryRule(out);");
+app=app.replace("const debitView=views.entries;", "const originalCategories=views.categories;views.categories=()=>originalCategories()+window.norte.rulesView(state);const debitView=views.entries;");
 write('web/dist/app.js',app);
 write('web/dist/finance.js',finance.replace('module.exports=','window.F='));
 const url=process.env.NORTE_SUPABASE_URL||'',key=process.env.NORTE_SUPABASE_PUBLISHABLE_KEY||'';
