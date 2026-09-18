@@ -13,8 +13,8 @@ export function installmentInfo(description){
 }
 export function merchantName(description){
  const base=installmentInfo(description)?.base||String(description||'').trim(),s=norm(base);
- if(/\bmercado\s*livre\b|\bmercadolivre\b/.test(s))return 'Mercado Livre';
  if(/\bmercado\s*pago\b|\bmercadopago\b/.test(s))return 'Mercado Pago';
+ if(/\bmercado\s*livre\b|\bmercadolivre\b/.test(s))return 'Mercado Livre';
  const known=[['spotify','Spotify'],['netflix','Netflix'],['amazon prime','Amazon Prime'],['disney','Disney+'],['youtube','YouTube'],['icloud','iCloud'],['google one','Google One'],['chatgpt','ChatGPT'],['chatgp','ChatGPT'],['openai','OpenAI'],['ifood club','iFood Clube']];
  return known.find(([key])=>s.includes(key))?.[1]||base.slice(0,200);
 }

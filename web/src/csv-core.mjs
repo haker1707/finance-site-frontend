@@ -1,3 +1,4 @@
+import {catalogMatch,catalogNormalize} from './catalog.mjs';
 import {installmentInfo,categoryHint,merchantName} from './intelligence.mjs';
 // Pure rules shared by the browser preview and the authenticated server.
 export const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
@@ -68,7 +69,6 @@ export async function parseCSV(text,context){
   return {index,key,scope,date,description,amount:signed===null?0:Math.abs(signed),signed,type,installment,repeated:Boolean(repeatedId||occurrence>1),cardId:context.cardId||'',account:credit?'':context.account.trim(),invoicePeriod:credit?context.period:'',providerId,issues,raw,rawDate,rawAmount,format};
  }));
 }
-const categoryRules=[[/netflix|spotify|amazon prime|disney|youtube|icloud|google one|assinatura|openai|chatgpt/,'Assinaturas'],[/mercado|supermercado|atacadao|assai|carrefour/,'Supermercado'],[/ifood|restaurante|lanchonete|padaria|pizzaria/,'Alimentação'],[/uber|99app|posto|combustivel|estacionamento/,'Transporte'],[/farmacia|drogaria|hospital|clinica/,'Saúde'],[/escola|curso|faculdade|livraria/,'Educação'],[/energia|eletric|agua|internet|aluguel/,'Moradia']];
 const merchant=value=>normalize(installmentInfo(value)?.base||String(value||'').replace(/\s*·\s*1\/1\s*$/,''));
 export function reviewIndex(records,ledger){
  const history=new Map(),matches=new Map();
@@ -76,11 +76,16 @@ export function reviewIndex(records,ledger){
  for(const r of ledger){const key=Math.abs(r.amount)+'|'+merchant(r.description);const list=matches.get(key)||[];list.push(r);matches.set(key,list);}
  return {history,matches,categories:records.filter(r=>r.kind==='category'&&!r.archived),exact:new Set(records.filter(r=>r.csvKey).map(r=>r.csvKey))};
 }
-export function suggestion(row,records,index,rules=[]){
- const type=row.type==='estorno'?'despesa':row.type;if(!type||type==='transferencia')return {categoryId:'',categoryName:''};
- const learned=categoryHint(row,records,rules);if(learned)return learned;index??=reviewIndex(records,[]);const ids=[...(index.history.get(type+'|'+normalize(row.description))||[])];const known=ids.length===1?index.categories.find(r=>r.id===ids[0]):null;
- const name=known?.name||(type==='fatura'?'Pagamento de fatura':type==='receita'?'Recebimentos':merchantName(row.description)==='Mercado Livre'?'Compras online':categoryRules.find(([re])=>re.test(normalize(row.description)))?.[1]||({despesa:'Outros',investimento:'Investimentos',divida:'Pagamento de dívidas',saldo:'Saldo inicial'}[type]||''));
- const category=known||index.categories.find(r=>r.type===type&&normalize(r.name)===normalize(name));return {categoryId:category?.id||'',categoryName:name};
+export function suggestion(row,records,index,rules=[],catalog=[],recurring=new Set()){
+ const type=row.type==='estorno'?'despesa':row.type;
+ if(!type||type==='transferencia')return {categoryId:'',categoryName:'',suggestionSource:'default'};
+ const match=catalogMatch(row.description,catalog),possibleSubscription=type==='despesa'&&match?.category!=='Assinaturas'&&!row.reversal&&!installmentInfo(row.description)&&recurring.has(recurringKey(row));
+ const personal=categoryHint(row,records,rules);
+ if(personal)return {...personal,suggestionSource:'personal',possibleSubscription,merchant:match?.merchant||merchantName(row.description)};
+ const explicit=type==='despesa'&&!(match?.category==='Assinaturas'&&installmentInfo(row.description))&&match?.category;
+ const name=explicit||(possibleSubscription&&!match?'Assinaturas':({despesa:'Outros',fatura:'Pagamento de fatura',receita:'Recebimentos',investimento:'Investimentos',divida:'Pagamento de dívidas',saldo:'Saldo inicial'}[type]||''));
+ const category=records.find(r=>r.kind==='category'&&!r.archived&&r.type===type&&catalogNormalize(r.name)===catalogNormalize(name));
+ return {categoryId:category?.id||'',categoryName:category?.name||name,suggestionSource:explicit?'catalog':possibleSubscription&&!match?'recurrence':'default',possibleSubscription,merchant:match?.merchant||merchantName(row.description),...(match?{catalogRuleId:match.rule_id,catalogVersion:match.version}:{}),ruleApplied:Boolean(explicit)};
 }
 export function duplicates(row,records,ledger,index){
  index??=reviewIndex(records,ledger);const exact=index.exact.has(row.key),possible=row.repeated||(index.matches.get(row.amount+'|'+merchant(row.description))||[]).some(r=>row.cardId?(r.cardId===row.cardId&&(r.date.startsWith(row.invoicePeriod)||(r.originalDate||r.date)===row.date)):(r.originalDate||r.date)===row.date);
