@@ -209,9 +209,9 @@ async function accountLogout(text){
 async function startApp(){await chooseWorkspace();}
 async function boot(){
  if(!config.url||!config.key){document.querySelector('#app').innerHTML='<div class="auth-shell"><div class="auth-intro"><div class="eyebrow">NORTE</div><h1>Quase pronto.</h1><p>O site foi publicado. Falta conectar o projeto Supabase para ativar seu acesso e armazenamento.</p></div><section class="auth-card"><h2>Configuração pendente</h2><p>Configure as variáveis públicas do projeto no GitHub e publique novamente, seguindo o guia de implantação do repositório.</p><p>Nenhum dado financeiro foi carregado.</p></section></div>';return;}
- // Authentication and financial data stay in memory, not persistent browser storage.
- try{localStorage.removeItem('sb-'+new URL(config.url).hostname.split('.')[0]+'-auth-token');}catch{}
- client=createClient(config.url,config.key,{auth:{persistSession:false,autoRefreshToken:true,detectSessionInUrl:true}});
+ // Persist only the Supabase auth session. Financial records remain in memory.
+ // Server authentication and workspace permissions are checked on every request.
+ client=createClient(config.url,config.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
  client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;authScreen('recovery');}if(event==='SIGNED_OUT'){clearAccount();if(loaded&&!endingAccount)location.reload();}});
  const {data:{session}}=await client.auth.getSession();
  if(recovering)authScreen('recovery');else if(session)await startApp();else authScreen();
