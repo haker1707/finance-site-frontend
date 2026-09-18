@@ -25,6 +25,8 @@ export function categoryHint(row,records,rules=[]){
  return null;
 }
 export function installmentEligible(r){return r.kind==='entry'&&r.cardId&&r.type==='despesa'&&!r.reversal&&validMonth(r.invoicePeriod)&&Boolean(installmentInfo(r.description));}
+export const installmentAutoReview=r=>Boolean(installmentEligible(r));
+export const needsReview=r=>r.reviewStatus==='pending'&&!installmentAutoReview(r);
 export function expectedPart(plan,number){const edit=plan.overrides?.[number]||{};return {number,period:edit.period||monthOffset(plan.anchorPeriod,number-plan.anchorNumber),amount:edit.amount??plan.amount,cancelled:Boolean(plan.cancelled||edit.cancelled)};}
 export function syncInstallments(data){
  data.installmentPlans??=[];data.installmentIgnored??=[];

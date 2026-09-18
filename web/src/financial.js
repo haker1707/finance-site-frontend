@@ -1,3 +1,4 @@
+import {installmentsView} from './installments-ui.js';
 import {clearSavedReview,savedReviewAction} from './saved-review.js';
 import {mountImportReview,monthLabel,suggestFileMonth} from './review-ui.js';
 import {monthlyCardView,installmentSummary,intelligenceAction,clearIntelligence} from './intelligence-ui.js';
@@ -7,14 +8,15 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((n||0)/100);
 const date=s=>s?.split('-').reverse().join('/')||'';
 const btn=(label,action,extra='',cls='')=>`<button class="${cls}" data-action="${action}" ${extra}>${label}</button>`;
-let selectedCard='',generation=0;
-export function clearFinancial(){clearSavedReview();clearIntelligence();selectedCard='';generation++;document.querySelectorAll('[data-financial-dialog]').forEach(d=>{d.close();d.remove();});}
+let selectedCard='',cardTab='invoices',openedPurchase='',generation=0;
+export function clearFinancial(){clearSavedReview();clearIntelligence();selectedCard='';cardTab='invoices';openedPurchase='';generation++;document.querySelectorAll('[data-financial-dialog]').forEach(d=>{d.close();d.remove();});}
 export const financeTabs=active=>`<nav class="finance-tabs" aria-label="Movimentações financeiras">${btn('Contas e lançamentos','navigate','data-route="entries"',active==='entries'?'primary':'')}${btn('Cartões de crédito','navigate','data-route="cards"',active==='cards'?'primary':'')}</nav>`;
 export function cardsView(state,period,helpers){
  const cards=state.records.filter(r=>r.kind==='card'),card=cards.find(r=>r.id===selectedCard),ledger=window.F.ledger(state.records),readOnly=state.role==='consultant';
  const amount=id=>ledger.filter(r=>r.cardId===id&&r.type==='despesa'&&r.date.startsWith(period)).reduce((sum,r)=>sum+r.amount,0);
  if(!card)return financeTabs('cards')+`<div class="heading"><div><div class="eyebrow">FINANÇAS COM DIREÇÃO</div><h1>Cartões</h1><p>Abra um cartão para acompanhar sua fatura e importar compras de crédito.</p></div>${btn('Novo cartão','new-card','','primary')}</div><div class="goal-grid">${cards.map(c=>`<article class="goal-card clickable-card" data-action="finance-card" data-card="${esc(c.id)}" tabindex="0" role="link" aria-label="Abrir cartão ${esc(c.name)}"><div class="panel-head"><h2>${esc(c.name)}</h2><span aria-hidden="true">↗</span></div><p class="tiny">COMPROMISSO DO MÊS</p><div class="goal-money">${money(amount(c.id))}</div><div class="goal-meta"><span>Fechamento: ${c.closing||'configurar'}</span><span>Vencimento: ${c.due||'configurar'}</span></div><p>Limite informado: ${money(c.limit)}</p><div class="row">${btn('Abrir fatura','finance-card',`data-card="${esc(c.id)}"`,'primary')}${btn('Editar','edit',`data-id="${esc(c.id)}"`)}${btn('Excluir','delete',`data-id="${esc(c.id)}"`,'danger')}</div></article>`).join('')||'<section class="panel"><h2>Nenhum cartão cadastrado</h2><p>Adicione um cartão para organizar as compras de crédito.</p></section>'}</div>`;
- return financeTabs('cards')+monthlyCardView(state,period,card,helpers)+recurringView(state,period,card.id);
+ const tabs=`<nav class="finance-tabs" aria-label="Seções do cartão">${btn('Faturas','finance-card-tab','data-tab="invoices"',cardTab==='invoices'?'primary':'')}${btn('Compras parceladas','finance-card-tab','data-tab="installments"',cardTab==='installments'?'primary':'')}</nav>`;
+ return financeTabs('cards')+tabs+(cardTab==='installments'?installmentsView(state,card,openedPurchase):monthlyCardView(state,period,card,helpers)+recurringView(state,period,card.id));
 }
 export function recurringView(state,period,cardId=''){
  const rules=(state.recurringRules||[]).filter(r=>(r.cardId||'')===cardId),candidates=recurringCandidates(state.records).filter(r=>(r.cardId||'')===cardId&&!rules.some(x=>x.key===r.key)),expected=forecast(rules,state.records,period);
@@ -93,7 +95,9 @@ function recurringDialog(state,key,mode,deps){
 export async function financialAction(action,el,ctx,deps){
  if(await savedReviewAction(action,el,ctx,deps))return;
  if(await intelligenceAction(action,el,ctx,deps))return;
- if(action==='finance-card'){selectedCard=el.dataset.card;ctx.render();return;}
+ if(action==='finance-card-tab'){cardTab=el.dataset.tab==='installments'?'installments':'invoices';ctx.render();return;}
+ if(action==='finance-part-open'){openedPurchase=openedPurchase===el.dataset.plan?'':el.dataset.plan;ctx.render();return;}
+ if(action==='finance-card'){cardTab='invoices';openedPurchase='';selectedCard=el.dataset.card;ctx.render();return;}
  if(action==='finance-back'){selectedCard='';ctx.render();return;}
  if(action==='finance-import')return importDialog(ctx.state,ctx.period,el.dataset.card||'',deps);
  if(action==='finance-recurring-remove'){if(ctx.state.role!=='owner')throw Error('Somente o titular pode alterar recorrências.');if(confirm('Remover esta previsão? Os lançamentos existentes serão preservados. A sugestão poderá reaparecer pelo histórico.')){await deps.call('recurring-remove',{key:el.dataset.key});await deps.refresh();}return;}
