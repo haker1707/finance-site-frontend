@@ -35,3 +35,13 @@ Nubank mantém reconhecimento automático e identidades de duplicidade anteriore
 Erros recuperáveis de data, valor, descrição, identificador ou quantidade de colunas aparecem no registro, com valores originais. O usuário pode corrigir os campos e confirmar a correção, ou deixar o registro desmarcado e autorizar sua exclusão do lote. O servidor repete a interpretação, valida as correções e exige a autorização para pular linhas problemáticas. Linhas excluídas por erro ficam registradas no histórico da importação. Aspas sem fechamento e falhas estruturais que impedem delimitar registros continuam bloqueando o arquivo com mensagem específica.
 
 Nenhuma importação real ou execução de testes foi realizada nesta correção. Compilação e revisão não substituem validação em uso real.
+
+## Importação em lote e assinaturas
+
+A seleção aceita até 30 CSVs, com até 2 MB e 2.000 registros por arquivo, 8 MB e 5.000 registros por lote. O usuário confirma a conta ou o mês da fatura de cada arquivo; datas no nome do arquivo só sugerem o mês. Cada CSV desconhecido possui seu próprio mapeamento. O lote é conferido junto, com nome do arquivo e competência ao lado das linhas.
+
+Duplicidades são verificadas contra o histórico e entre arquivos. Repetições exatas do lote ficam bloqueadas na ocorrência posterior. O histórico combinado serve para sugerir a categoria Assinaturas em cobranças mensais semelhantes, excluindo parcelas; a categoria é editável e a previsão recorrente ainda exige confirmação própria. Filtros separam assinaturas sugeridas, demais categorias e itens pendentes, sem alterar a seleção.
+
+A ação autenticada csv-batch processa os arquivos na memória do servidor e grava uma única revisão ao final. Um erro cancela todo o lote, sem importar apenas parte dele. Limites e validação por linha são repetidos no servidor. Arquivos sem lançamentos selecionados são anotados no histórico; linhas problemáticas excluídas exigem autorização.
+
+Categorias solicitadas pelo titular foram acrescentadas somente à sua conta, sem alterar lançamentos nem criar categorias para outros usuários. Sem testes automatizados ou manuais e sem importação dos CSVs anexados.
