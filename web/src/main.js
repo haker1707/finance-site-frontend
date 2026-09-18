@@ -24,6 +24,7 @@ async function request(action,payload={}){
  if(response.status===404&&result.code==='NOT_FOUND')throw Error('Seu login foi autenticado, mas o serviço de dados do Norte ainda não foi publicado. O responsável precisa concluir a implantação do Supabase.');
  if(!response.ok||result.error){if(response.status===401||response.status===403){clearAccount();document.querySelector('#app').innerHTML='<section class="auth-card"><h2>Acesso indisponível</h2><p>Sua autorização terminou ou a sessão expirou. Entre novamente para consultar as contas disponíveis.</p><a href="./">Voltar ao acesso</a></section>';}throw Object.assign(Error(result.error||'Não foi possível concluir.'),{importLocation:result.importLocation});}
  if(result.revision!==undefined)revision=result.revision;
+ if(action==='financial-reset')clearFinancial();
  return result.value;
 }
 async function call(action,p={}){
@@ -114,7 +115,7 @@ async function connect(itemId=''){
  });await widget.init();
 }
 async function action(action,el){
- if(action==='web-profile')return openAccount({request,refresh:()=>window.norte.refresh(),chooseWorkspace,logout:accountLogout,getTheme:()=>document.body.classList.contains('light')?'light':'dark'});
+ if(action==='web-profile')return openAccount({request,refresh:()=>window.norte.refresh(),chooseWorkspace,logout:accountLogout,canReset:lastState?.role==='owner',getTheme:()=>document.body.classList.contains('light')?'light':'dark'});
  if(action==='web-accounts')return chooseWorkspace();
  if(action==='web-access')return accessDialog();
  if(action==='web-logout'){clearAccount();document.querySelector('#app').innerHTML='<p class="loading">Saindo…</p>';await client.auth.signOut();location.reload();return;}

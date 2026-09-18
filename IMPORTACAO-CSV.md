@@ -74,3 +74,10 @@ Novas importações guardam `csvFile` e `csvRow`, além dos valores originais j�
 As telas de cartões e de contas mantêm listas por mês, edição, detalhes de origem e conferência individual ou em seleção. Consultores autorizados continuam somente com leitura; a conexão bancária permanece bloqueada.
 
 Entrega verificada por revisão de código, análise de sintaxe e compilação. Não foram executados testes automatizados ou manuais, nem importados arquivos financeiros ou dados de exemplo. Validação em uso real permanece pendente.
+
+
+## Confirmação sobreposta e reinício financeiro
+
+O rodapé da importação contém somente contador e “Continuar importação”. Esse botão encaminha à primeira linha selecionada com problema ou abre um diálogo final. Somente “Confirmar e importar” / “Importar e conferir depois” envia o lote. O diálogo conserva as escolhas ao voltar, apresenta autorização de exclusão de linhas problemáticas apenas quando necessária e adapta-se a painel inferior no celular.
+
+Minha conta inclui “Zerar dados financeiros” para o titular da conta selecionada. A operação exige senha atual, confirmação textual ZERAR MEUS DADOS e reconhecimento explícito. O servidor reautentica com limitação de tentativas, recusa consultores/contas de terceiros e substitui atomicamente o documento financeiro vazio com controle de revisão. Preserva perfil, login, prazo de acesso e compartilhamentos; limpa registros, categorias, importações, regras, previsões e configurações financeiras. Conexões bancárias existentes ou pendentes bloqueiam o reinício até desvinculação para evitar repovoamento. Contas com autenticação adicional seguem a restrição de reautenticação já existente. Nenhum dado real foi zerado durante esta implementação. Revisão e compilação sem testes; validação em uso real pendente.

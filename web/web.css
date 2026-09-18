@@ -70,3 +70,6 @@ body.light .estimate-notice{color:#785000}body.light .estimate-warning{color:#91
 @media(prefers-reduced-motion:reduce){.gold-highlight{transition:none;scroll-behavior:auto}}
 
 .web .compact-flags .error-link,.web .review-errors .error-link{min-height:32px}.web .compact-record .small{min-height:34px}.csv-dialog .compact-editor{scroll-margin-bottom:280px}
+
+.web .import-footer-compact{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;bottom:0;margin-bottom:0;font-size:.84rem}.import-footer-compact>.primary{margin:0;flex-shrink:0}.web .import-confirmation{width:min(540px,calc(100vw - 24px));max-height:85dvh;padding:24px}.import-confirmation .row{justify-content:flex-end;margin-top:20px}.import-confirmation [role=alert]{margin:12px 0}.csv-dialog .compact-editor{scroll-margin-bottom:80px}
+@media(max-width:600px){.web .import-confirmation{inset:auto 0 0;margin:0;width:100%;max-width:none;max-height:88dvh;border-radius:18px 18px 0 0;padding:20px 16px;padding-bottom:max(20px,env(safe-area-inset-bottom))}.web .import-footer-compact{font-size:.76rem;gap:8px}.import-footer-compact button{padding:8px;font-size:.78rem}.import-confirmation .row button{flex:1}}
