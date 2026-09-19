@@ -1,3 +1,4 @@
+import {selectPeriodRows} from './professional-summary.mjs';
 import {installmentEstimates} from './intelligence.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const br=s=>s.split('-').reverse().join('/');
@@ -12,8 +13,7 @@ export function rangeAction(action,el,ctx){if(action==='range-page'){page=Math.m
  if(fields.cycleCard){const syncCycle=()=>{const card=cards.find(c=>c.id===fields.cycleCard.value);fields.cycleMonth.disabled=!card;fields.cycleMonth.required=!!card;if(!card?.due)return;const month=fields.cycleMonth.value;if(!F.validDate(month+'-01'))return;try{const end=F.date(+month.slice(0,4),+month.slice(5,7),card.due),previous=F.addMonths(month+'-01',-1);fields.start.value=F.date(+previous.slice(0,4),+previous.slice(5,7),card.due);fields.end.value=end;d.querySelector('[role=alert]').textContent='';}catch{d.querySelector('[role=alert]').textContent='Selecione um vencimento final a partir de fevereiro de 1900.';}};fields.cycleCard.addEventListener('change',syncCycle);fields.cycleMonth.addEventListener('change',syncCycle);fields.cycleMonth.disabled=!fields.cycleCard.value;fields.cycleMonth.required=!!fields.cycleCard.value;for(const input of [fields.start,fields.end])input.addEventListener('input',()=>{fields.cycleCard.value='';fields.cycleMonth.disabled=true;fields.cycleMonth.required=false;});}
  d.showModal();}
 export function rangeRows(state,scope='all',active=range){
- const F=window.F,cards=new Map(state.records.filter(r=>r.kind==='card').map(r=>[r.id,r]));let unknown=0;
- const rows=F.ledger(state.records).filter(r=>scope==='debit'?!r.cardId:scope==='credit'?!!r.cardId:scope==='all'||r.cardId===scope).map(r=>{let calculationDate=r.originalDate||r.date;if(r.cardId&&r.type!=='fatura'){if(r.derived)calculationDate=r.date;else if(r.invoicePeriod){const card=cards.get(r.cardId);calculationDate=card?.due?F.date(+r.invoicePeriod.slice(0,4),+r.invoicePeriod.slice(5,7),card.due):'';}}if(!calculationDate)unknown++;return {...r,calculationDate};}).filter(r=>r.calculationDate>=active.start&&r.calculationDate<=active.end).sort((a,b)=>b.calculationDate.localeCompare(a.calculationDate)||a.id.localeCompare(b.id));return {rows,unknown};
+ return selectPeriodRows(state,window.F,active,scope);
 }
 export function rangeReport(state,scope='all',fallbackPeriod=''){
  const F=window.F,active=range||(fallbackPeriod?{start:fallbackPeriod+'-01',end:F.date(+fallbackPeriod.slice(0,4),+fallbackPeriod.slice(5,7),31)}:null);if(!active)return '';const {rows,unknown}=rangeRows(state,scope,active),sum=type=>rows.filter(r=>r.type===type).reduce((a,r)=>a+r.amount,0),s=F.summarize(rows,''),categories=new Map(state.records.filter(r=>r.kind==='category').map(r=>[r.id,r.name]));
