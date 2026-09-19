@@ -37,3 +37,6 @@ Organizações e empresas: adicionar no futuro um workspace de organização e a
 ## Entrega
 
 Somente revisão de código/configurações, compilação e publicação. Sem testes automatizados ou manuais; sem movimentações, clientes ou convites fictícios; sem importação de arquivos financeiros. Validação em uso real permanece pendente.
+
+## Ativação obrigatória
+A área profissional exige consultant_enabled=true, obtido pelo código em Minha conta → Perfil profissional. O servidor verifica esse estado no dashboard, monitoramento, aceite de convites e leitura de clientes (inclusive pelo seletor de contas). Sem ativação, somente a conta pessoal é disponibilizada. O código não substitui o consentimento do cliente. Nenhum perfil ou vínculo existente foi alterado.
