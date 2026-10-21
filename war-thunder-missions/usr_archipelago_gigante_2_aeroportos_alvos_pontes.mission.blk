@@ -1,0 +1,2110 @@
+selected_tag:t=""
+bin_dump_file:t=""
+
+mission_settings{
+  player{
+    army:i=1
+    wing:t="t1_player01"
+    wing:t="t1_player02"
+    wing:t="t1_player03"
+    wing:t="t1_player04"
+    wing:t="t1_player05"
+    wing:t="t1_player06"
+    wing:t="t1_player07"
+    wing:t="t1_player08"
+    wing:t="t1_player09"
+    wing:t="t1_player10"
+    wing:t="t1_player11"
+    wing:t="t1_player12"
+    wing:t="t1_player13"
+    wing:t="t1_player14"
+    wing:t="t1_player15"
+    wing:t="t1_player16"
+  }
+
+  player_teamB{
+    army:i=2
+    wing:t="t2_player01"
+    wing:t="t2_player02"
+    wing:t="t2_player03"
+    wing:t="t2_player04"
+    wing:t="t2_player05"
+    wing:t="t2_player06"
+    wing:t="t2_player07"
+    wing:t="t2_player08"
+    wing:t="t2_player09"
+    wing:t="t2_player10"
+    wing:t="t2_player11"
+    wing:t="t2_player12"
+    wing:t="t2_player13"
+    wing:t="t2_player14"
+    wing:t="t2_player15"
+    wing:t="t2_player16"
+  }
+
+  mission{
+    name:t="archipelago_gigante_2_aeroportos_alvos_pontes"
+    type:t="domination"
+    level:t="levels/air_archipelago.bin"
+    environment:t="Day"
+    weather:t="clear"
+    locName:t="Arquipelago Gigante - Ataque aos Depositos"
+    locDesc:t="Equipe A ataca tres instalacoes da Equipe B. Cinco pontes destrutiveis sao o objetivo secundario."
+    timeLimit:i=90
+    scoreLimit:i=1000
+    deathPenaltyMul:r=0.0
+    allowEmptyTeams:b=yes
+    maxRespawns:i=10
+    respawnTimeMultiplier:r=0.25
+    showTacticalMapCellSize:b=yes
+
+    allowedUnitTypes{
+      isAirplanesAllowed:b=yes
+      isTanksAllowed:b=no
+      isShipsAllowed:b=no
+      isHelicoptersAllowed:b=yes
+    }
+  }
+
+  cover_points{}
+}
+
+imports{}
+
+triggers{
+  isCategory:b=yes
+  is_enabled:b=yes
+
+  iniciar_missao{
+    is_enabled:b=yes
+    comments:t="Cria os dois aeroportos e mostra os objetivos da Equipe A"
+
+    props{
+      actionsType:t="PERFORM_ONE_BY_ONE"
+      conditionsType:t="ALL"
+      enableAfterComplete:b=no
+    }
+
+    events{
+      initMission{}
+    }
+
+    conditions{}
+
+    actions{
+      missionMarkAsRespawnPoint{
+        loc_name:t="Spawn Aereo Equipe A"
+        radius:r=-1.0
+        target:t="t1_air_spawn_01"
+        target:t="t1_air_spawn_02"
+        target:t="t1_air_spawn_03"
+        target:t="t1_air_spawn_04"
+        target:t="t1_air_spawn_05"
+        target:t="t1_air_spawn_06"
+        target:t="t1_air_spawn_07"
+        target:t="t1_air_spawn_08"
+        target:t="t1_air_spawn_09"
+        target:t="t1_air_spawn_10"
+        team:t="A"
+        isStrictSpawn:b=yes
+        isStrictPosAndDir:b=yes
+        resetStrictSpawnIndex:b=yes
+        shouldSpawnAwayFromOtherPlayers:b=yes
+        showOnMap:b=yes
+
+        tags{
+          air:b=yes
+          helicopter:b=yes
+          tank:b=no
+          ship:b=no
+        }
+      }
+
+      missionMarkAsRespawnPoint{
+        loc_name:t="Spawn Aereo Equipe B"
+        radius:r=-1.0
+        target:t="t2_air_spawn_01"
+        target:t="t2_air_spawn_02"
+        target:t="t2_air_spawn_03"
+        target:t="t2_air_spawn_04"
+        target:t="t2_air_spawn_05"
+        target:t="t2_air_spawn_06"
+        target:t="t2_air_spawn_07"
+        target:t="t2_air_spawn_08"
+        target:t="t2_air_spawn_09"
+        target:t="t2_air_spawn_10"
+        team:t="B"
+        isStrictSpawn:b=yes
+        isStrictPosAndDir:b=yes
+        resetStrictSpawnIndex:b=yes
+        shouldSpawnAwayFromOtherPlayers:b=yes
+        showOnMap:b=yes
+
+        tags{
+          air:b=yes
+          helicopter:b=yes
+          tank:b=no
+          ship:b=no
+        }
+      }
+
+      airfieldSetProperties{
+        object:t="aeroporto_equipe_a"
+        object:t="aeroporto_equipe_b"
+        enemySurrenderOnLanding:b=yes
+      }
+
+      moAddMissionObjective{
+        target:t="destruir_alvos_principais"
+      }
+
+      moAddMissionObjective{
+        target:t="destruir_pontes_secundarias"
+      }
+
+      unitSetIndication{
+        set:b=yes
+        target:t="alvo_municao_b"
+        target:t="alvo_combustivel_b_01"
+        target:t="alvo_combustivel_b_02"
+      }
+
+      unitSetIndication{
+        set:b=yes
+        target:t="ponte_b_01"
+        target:t="ponte_b_02"
+        target:t="ponte_b_03"
+        target:t="ponte_b_04"
+        target:t="ponte_b_05"
+      }
+    }
+
+    else_actions{}
+  }
+
+  verificar_alvos_principais{
+    is_enabled:b=yes
+    comments:t="Conclui o objetivo principal quando os tres alvos forem destruidos"
+
+    props{
+      actionsType:t="PERFORM_ONE_BY_ONE"
+      conditionsType:t="ALL"
+      enableAfterComplete:b=no
+    }
+
+    events{
+      periodicEvent{
+        time:r=1.0
+      }
+    }
+
+    conditions{
+      unitWhenCountMatches{
+        object_type:t="isAlive"
+        object_marking:i=0
+        func:t="less"
+        value:i=1
+        object:t="alvo_municao_b"
+        object:t="alvo_combustivel_b_01"
+        object:t="alvo_combustivel_b_02"
+      }
+    }
+
+    actions{
+      moSetObjectiveStatus{
+        target:t="destruir_alvos_principais"
+        status:i=2
+      }
+    }
+
+    else_actions{}
+  }
+
+  verificar_pontes_secundarias{
+    is_enabled:b=yes
+    comments:t="Conclui o objetivo secundario quando as cinco pontes forem destruidas"
+
+    props{
+      actionsType:t="PERFORM_ONE_BY_ONE"
+      conditionsType:t="ALL"
+      enableAfterComplete:b=no
+    }
+
+    events{
+      periodicEvent{
+        time:r=1.0
+      }
+    }
+
+    conditions{
+      unitWhenCountMatches{
+        object_type:t="isAlive"
+        object_marking:i=0
+        func:t="less"
+        value:i=1
+        object:t="ponte_b_01"
+        object:t="ponte_b_02"
+        object:t="ponte_b_03"
+        object:t="ponte_b_04"
+        object:t="ponte_b_05"
+      }
+    }
+
+    actions{
+      moSetObjectiveStatus{
+        target:t="destruir_pontes_secundarias"
+        status:i=2
+      }
+    }
+
+    else_actions{}
+  }
+}
+
+mission_objectives{
+  isCategory:b=yes
+  is_enabled:b=yes
+
+  destruir_alvos_principais{
+    is_enabled:b=no
+    comments:t="Objetivo principal da Equipe A"
+    type:t="abstractMissionObjective"
+
+    props{
+      isPrimary:b=yes
+      timeLimit:i=5400
+      scoreConst:i=1000
+      scoreTime:i=0
+    }
+
+    onSuccess{}
+    onFailed{}
+  }
+
+  destruir_pontes_secundarias{
+    is_enabled:b=no
+    comments:t="Objetivo secundario opcional da Equipe A"
+    type:t="abstractMissionObjective"
+
+    props{
+      isPrimary:b=no
+      timeLimit:i=5400
+      scoreConst:i=500
+      scoreTime:i=0
+    }
+
+    onSuccess{}
+    onFailed{}
+  }
+}
+
+variables{}
+dialogs{}
+airfields{}
+effects{}
+
+units{
+  armada{
+    name:t="t1_player01"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44692.5, 1234.834, -68681.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player01"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68496.1, 1634.8, 42424.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player02"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44687.5, 3500.0, -68676.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player03"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44682.5, 3500.0, -68671.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player04"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44677.5, 3500.0, -68666.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player05"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44672.5, 3500.0, -68661.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player06"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44667.5, 3500.0, -68656.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player07"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44662.5, 3500.0, -68651.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player08"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44657.5, 3500.0, -68646.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player09"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44652.5, 3500.0, -68641.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player10"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44647.5, 3500.0, -68636.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player11"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44642.5, 3500.0, -68631.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player12"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44637.5, 3500.0, -68626.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player13"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44632.5, 3500.0, -68621.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player14"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44627.5, 3500.0, -68616.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player15"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44622.5, 3500.0, -68611.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t1_player16"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-44617.5, 3500.0, -68606.5]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=1
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player02"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68501.1, 3500.0, 42429.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player03"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68506.1, 3500.0, 42434.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player04"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68511.1, 3500.0, 42439.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player05"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68516.1, 3500.0, 42444.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player06"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68521.1, 3500.0, 42449.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player07"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68526.1, 3500.0, 42454.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player08"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68531.1, 3500.0, 42459.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player09"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68536.1, 3500.0, 42464.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player10"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68541.1, 3500.0, 42469.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player11"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68546.1, 3500.0, 42474.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player12"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68551.1, 3500.0, 42479.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player13"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68556.1, 3500.0, 42484.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player14"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68561.1, 3500.0, 42489.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player15"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68566.1, 3500.0, 42494.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  armada{
+    name:t="t2_player16"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [68571.1, 3500.0, 42499.2]]
+    unit_class:t="dummy_plane"
+    closed_waypoints:b=no
+    isShipSpline:b=no
+    shipTurnRadius:r=100.0
+    weapons:t=""
+    bullets0:t=""
+    bullets1:t=""
+    bullets2:t=""
+    bullets3:t=""
+    bulletsCount0:i=0
+    bulletsCount1:i=0
+    bulletsCount2:i=0
+    bulletsCount3:i=0
+    crewSkillK:r=0.0
+    applyAllMods:b=no
+
+    props{
+      army:i=2
+      count:i=1
+      free_distance:r=70.0
+      floating_distance:r=50.0
+      minimum_distance_to_earth:r=20.0
+      altLimit:r=6000.0
+      attack_type:t="fire_at_will"
+      skill:i=4
+      player:b=yes
+
+      plane{
+        wing_formation:t="Diamond"
+        row_distances:r=3.0
+        col_distances:r=3.0
+        super_formation:t="Diamond"
+        super_row_distances:r=1.5
+        super_col_distances:r=1.5
+        ai_skill:t="NORMAL"
+        task:t="FLY_WAYPOINT"
+      }
+    }
+
+    way{}
+  }
+
+  objectGroups{
+    name:t="aeroporto_equipe_a"
+    tm:m=[[-0.86347, 0.0, -0.5044] [0.0, 1.0, 0.0] [0.5044, 0.0, -0.86347] [-44692.5, 234.834, -68681.5]]
+    unit_class:t="dynaf_archipelago_a"
+    objLayer:i=2
+
+    props{
+      army:i=1
+      active:b=yes
+    }
+
+    additionalEcsTemplates{
+      nuclear_escalation_airfield{}
+    }
+  }
+
+  objectGroups{
+    name:t="aeroporto_equipe_b"
+    tm:m=[[0.553966, 0.0, 0.832539] [0.0, 1.0, 0.0] [-0.832539, 0.0, 0.553966] [68496.1, 634.8, 42424.2]]
+    unit_class:t="dynaf_archipelago_b"
+    objLayer:i=2
+
+    props{
+      army:i=2
+      active:b=yes
+    }
+
+    additionalEcsTemplates{
+      nuclear_escalation_airfield{}
+    }
+  }
+
+  objectGroups{
+    name:t="alvo_municao_b"
+    tm:m=[[-0.809279, 0.0, 0.587426] [0.0, 1.0, 0.0] [-0.587426, 0.0, -0.809279] [37859.2, 429.5, -15157.9]]
+    unit_class:t="nt_ammo_factory_foundation"
+    objLayer:i=2
+
+    props{
+      army:i=2
+      active:b=yes
+    }
+
+    additionalEcsTemplates{
+      "fortification+ammo_factory_1970_late"{
+        rankRange:ip2=0, 50
+        unit__className:t="nt_ammo_factory"
+        unit__ownsUnitId:b=yes
+        nuclear_escalation_target__tag:t="primary_target"
+      }
+    }
+  }
+
+  objectGroups{
+    name:t="alvo_combustivel_b_01"
+    tm:m=[[-0.793212, 0.0, -0.608944] [0.0, 1.0, 0.0] [0.608944, 0.0, -0.793212] [46345.3, 431.7, -23620.1]]
+    unit_class:t="nt_fuel_factory_foundation"
+    objLayer:i=2
+
+    props{
+      army:i=2
+      active:b=yes
+    }
+
+    additionalEcsTemplates{
+      "fortification+fuel_factory_1970_late"{
+        rankRange:ip2=0, 50
+        unit__className:t="nt_fuel_factory"
+        unit__ownsUnitId:b=yes
+        nuclear_escalation_target__tag:t="primary_target"
+      }
+    }
+  }
+
+  objectGroups{
+    name:t="alvo_combustivel_b_02"
+    tm:m=[[0.965202, 0.0, -0.261505] [0.0, 1.0, 0.0] [0.261505, 0.0, 0.965202] [12445.6, 429.6, 10149.9]]
+    unit_class:t="nt_fuel_factory_foundation"
+    objLayer:i=2
+
+    props{
+      army:i=2
+      active:b=yes
+    }
+
+    additionalEcsTemplates{
+      "fortification+fuel_factory_1970_late"{
+        rankRange:ip2=0, 50
+        unit__className:t="nt_fuel_factory"
+        unit__ownsUnitId:b=yes
+        nuclear_escalation_target__tag:t="primary_target"
+      }
+    }
+  }
+
+  structures{
+    name:t="ponte_b_01"
+    tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [52000.0, 431.7, -18000.0]]
+    closed_waypoints:b=no
+    unit_class:t="berlin_bridge_01"
+    weapons:t=""
+
+    props{
+      army:i=2
+      count:i=1
+      formation_type:t="rows"
+      formation_div:i=1
+      formation_step:p2=1.0, 1.0
+      formation_noise:p2=0.0, 0.0
+      uniqueName:t=""
+      attack_type:t="fire_at_will"
+    }
+
+    way{}
+  }
+
+  structures{
+    name:t="ponte_b_02"
+    tm:m=[[0.866025, 0.0, -0.5] [0.0, 1.0, 0.0] [0.5, 0.0, 0.866025] [42000.0, 429.5, -10000.0]]
+    closed_waypoints:b=no
+    unit_class:t="berlin_bridge_01"
+    weapons:t=""
+
+    props{
+      army:i=2
+      count:i=1
+      formation_type:t="rows"
+      formation_div:i=1
+      formation_step:p2=1.0, 1.0
+      formation_noise:p2=0.0, 0.0
+      uniqueName:t=""
+      attack_type:t="fire_at_will"
+    }
+
+    way{}
+  }
+
+  structures{
+    name:t="ponte_b_03"
+    tm:m=[[0.5, 0.0, -0.866025] [0.0, 1.0, 0.0] [0.866025, 0.0, 0.5] [30000.0, 193.0, -1000.0]]
+    closed_waypoints:b=no
+    unit_class:t="berlin_bridge_01"
+    weapons:t=""
+
+    props{
+      army:i=2
+      count:i=1
+      formation_type:t="rows"
+      formation_div:i=1
+      formation_step:p2=1.0, 1.0
+      formation_noise:p2=0.0, 0.0
+      uniqueName:t=""
+      attack_type:t="fire_at_will"
+    }
+
+    way{}
+  }
+
+  structures{
+    name:t="ponte_b_04"
+    tm:m=[[0.0, 0.0, -1.0] [0.0, 1.0, 0.0] [1.0, 0.0, 0.0] [17000.0, 429.6, 9000.0]]
+    closed_waypoints:b=no
+    unit_class:t="berlin_bridge_01"
+    weapons:t=""
+
+    props{
+      army:i=2
+      count:i=1
+      formation_type:t="rows"
+      formation_div:i=1
+      formation_step:p2=1.0, 1.0
+      formation_noise:p2=0.0, 0.0
+      uniqueName:t=""
+      attack_type:t="fire_at_will"
+    }
+
+    way{}
+  }
+
+  structures{
+    name:t="ponte_b_05"
+    tm:m=[[0.707107, 0.0, 0.707107] [0.0, 1.0, 0.0] [-0.707107, 0.0, 0.707107] [6500.0, 801.4, 17500.0]]
+    closed_waypoints:b=no
+    unit_class:t="berlin_bridge_01"
+    weapons:t=""
+
+    props{
+      army:i=2
+      count:i=1
+      formation_type:t="rows"
+      formation_div:i=1
+      formation_step:p2=1.0, 1.0
+      formation_noise:p2=0.0, 0.0
+      uniqueName:t=""
+      attack_type:t="fire_at_will"
+    }
+
+    way{}
+  }
+}
+
+areas{
+  t1_air_spawn_01{
+    type:t="Sphere"
+    tm:m=[[106.066, 0.0, -106.066] [0.0, 150.0, 0.0] [106.066, 0.0, 106.066] [-43600.0, 3000.0, -67200.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t1_air_spawn_02{
+    type:t="Sphere"
+    tm:m=[[106.066, 0.0, -106.066] [0.0, 150.0, 0.0] [106.066, 0.0, 106.066] [-43300.0, 3000.0, -66900.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t1_air_spawn_03{
+    type:t="Sphere"
+    tm:m=[[106.066, 0.0, -106.066] [0.0, 150.0, 0.0] [106.066, 0.0, 106.066] [-43000.0, 3000.0, -66600.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t1_air_spawn_04{
+    type:t="Sphere"
+    tm:m=[[106.066, 0.0, -106.066] [0.0, 150.0, 0.0] [106.066, 0.0, 106.066] [-42700.0, 3000.0, -66300.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t1_air_spawn_05{
+    type:t="Sphere"
+    tm:m=[[106.066, 0.0, -106.066] [0.0, 150.0, 0.0] [106.066, 0.0, 106.066] [-42400.0, 3000.0, -66000.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t1_air_spawn_06{
+    type:t="Sphere"
+    tm:m=[[106.066, 0.0, -106.066] [0.0, 150.0, 0.0] [106.066, 0.0, 106.066] [-44024.0, 3000.0, -66776.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t1_air_spawn_07{
+    type:t="Sphere"
+    tm:m=[[106.066, 0.0, -106.066] [0.0, 150.0, 0.0] [106.066, 0.0, 106.066] [-43724.0, 3000.0, -66476.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t1_air_spawn_08{
+    type:t="Sphere"
+    tm:m=[[106.066, 0.0, -106.066] [0.0, 150.0, 0.0] [106.066, 0.0, 106.066] [-43424.0, 3000.0, -66176.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t1_air_spawn_09{
+    type:t="Sphere"
+    tm:m=[[106.066, 0.0, -106.066] [0.0, 150.0, 0.0] [106.066, 0.0, 106.066] [-43124.0, 3000.0, -65876.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t1_air_spawn_10{
+    type:t="Sphere"
+    tm:m=[[106.066, 0.0, -106.066] [0.0, 150.0, 0.0] [106.066, 0.0, 106.066] [-42824.0, 3000.0, -65576.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t2_air_spawn_01{
+    type:t="Sphere"
+    tm:m=[[-106.066, 0.0, 106.066] [0.0, 150.0, 0.0] [-106.066, 0.0, -106.066] [67000.0, 3000.0, 40500.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t2_air_spawn_02{
+    type:t="Sphere"
+    tm:m=[[-106.066, 0.0, 106.066] [0.0, 150.0, 0.0] [-106.066, 0.0, -106.066] [66700.0, 3000.0, 40200.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t2_air_spawn_03{
+    type:t="Sphere"
+    tm:m=[[-106.066, 0.0, 106.066] [0.0, 150.0, 0.0] [-106.066, 0.0, -106.066] [66400.0, 3000.0, 39900.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t2_air_spawn_04{
+    type:t="Sphere"
+    tm:m=[[-106.066, 0.0, 106.066] [0.0, 150.0, 0.0] [-106.066, 0.0, -106.066] [66100.0, 3000.0, 39600.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t2_air_spawn_05{
+    type:t="Sphere"
+    tm:m=[[-106.066, 0.0, 106.066] [0.0, 150.0, 0.0] [-106.066, 0.0, -106.066] [65800.0, 3000.0, 39300.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t2_air_spawn_06{
+    type:t="Sphere"
+    tm:m=[[-106.066, 0.0, 106.066] [0.0, 150.0, 0.0] [-106.066, 0.0, -106.066] [67424.0, 3000.0, 40076.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t2_air_spawn_07{
+    type:t="Sphere"
+    tm:m=[[-106.066, 0.0, 106.066] [0.0, 150.0, 0.0] [-106.066, 0.0, -106.066] [67124.0, 3000.0, 39776.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t2_air_spawn_08{
+    type:t="Sphere"
+    tm:m=[[-106.066, 0.0, 106.066] [0.0, 150.0, 0.0] [-106.066, 0.0, -106.066] [66824.0, 3000.0, 39476.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t2_air_spawn_09{
+    type:t="Sphere"
+    tm:m=[[-106.066, 0.0, 106.066] [0.0, 150.0, 0.0] [-106.066, 0.0, -106.066] [66524.0, 3000.0, 39176.0]]
+    objLayer:i=0
+    props{}
+  }
+
+  t2_air_spawn_10{
+    type:t="Sphere"
+    tm:m=[[-106.066, 0.0, 106.066] [0.0, 150.0, 0.0] [-106.066, 0.0, -106.066] [66224.0, 3000.0, 38876.0]]
+    objLayer:i=0
+    props{}
+  }
+
+}
+
+objLayers{
+  layer{
+    enabled:b=yes
+  }
+
+  layer{
+    enabled:b=yes
+  }
+
+  layer{
+    enabled:b=yes
+  }
+
+  layer{
+    enabled:b=yes
+  }
+}
+
+wayPoints{}
+
